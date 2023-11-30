@@ -23,7 +23,7 @@ ros::Publisher laser_pub;//全局变量Pub
 
 std::string target_frame_ = "laser_link";
 double tolerance_;
-double min_height_=-0.465, max_height_=1, angle_min_=-3.14, angle_max_=3.14, angle_increment_=0.003, scan_time_=0.1, range_min_=0.2, range_max_=100;
+double min_height_=-0.465, max_height_=1, angle_min_=-3.14, angle_max_=3.14, angle_increment_=0.017, scan_time_=0.1, range_min_=0.5, range_max_=100;
 bool use_inf_=true;
 double inf_epsilon_=1.0;
 

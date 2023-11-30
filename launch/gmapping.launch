@@ -12,6 +12,6 @@
   </node>
 
 
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find smallrobotv2)/rviz_cfg/exp3_gmapping.rviz"/>
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/gmapping.rviz"/>
 </launch> 
 
