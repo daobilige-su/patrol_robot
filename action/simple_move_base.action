@@ -1,0 +1,8 @@
+# Define the goal
+geometry_msgs/PoseStamped target_pose  # Specify which dishwasher we want to use
+---
+# Define the result
+geometry_msgs/PoseStamped target_pose_diff
+---
+# Define a feedback message
+geometry_msgs/PoseStamped base_position
