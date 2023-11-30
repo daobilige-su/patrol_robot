@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -62,6 +63,10 @@ find_package(catkin REQUIRED COMPONENTS
 #   Service1.srv
 #   Service2.srv
 # )
+add_service_files(
+  FILES
+  TaskList.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -181,6 +186,9 @@ target_link_libraries(pc2_to_laserscan
 #   scripts/my_python_script
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
+#catkin_install_python(PROGRAMS scripts/task_manager.py scripts/task_manager_srv_client.py
+#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
