@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- <master auto="start"/>  -->
+<!--   <param name="use_sim_time" value="true" /> -->
+
+  <!--   map_server -->
+  <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/mapv0.2.yaml"/>
+
+  <!--   als -->
+  <include file="$(find als_ros)/launch/mcl_patrol_robot.launch" />
+
+  <!--   task manager, the clients for move base and line track -->
+  <node pkg="patrol_robot" type="task_manager.py" name="task_manager" output="screen" />
+
+  <!--   line_track server -->
+  <node pkg="patrol_robot" type="line_track_server.py" name="line_track_server" output="screen" />
+
+  <!--   move_base -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find patrol_robot)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find patrol_robot)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find patrol_robot)/param/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find patrol_robot)/param/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find patrol_robot)/param/base_local_planner_params.yaml" command="load" />
+    <param name="controller_frequency" value="5" />
+    <param name="controller_patience" value="15" />
+    <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS" />
+  </node>
+
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/task_nav.rviz"/>
+</launch> 
+

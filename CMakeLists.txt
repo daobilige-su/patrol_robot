@@ -76,7 +76,9 @@ add_service_files(
 # )
 add_action_files(
   DIRECTORY action
-  FILES simple_move_base.action
+  FILES
+  simple_move_base.action
+  line_track.action
 )
 
 ## Generate added messages and services with any dependencies listed here

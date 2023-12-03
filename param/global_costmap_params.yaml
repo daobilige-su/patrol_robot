@@ -3,7 +3,7 @@ global_costmap:
   robot_base_frame: base_link
   update_frequency: 5.0
   static_map: true
-  inflation_radius: 0.5
+  inflation_radius: 1.5
 
   resolution: 0.01
 

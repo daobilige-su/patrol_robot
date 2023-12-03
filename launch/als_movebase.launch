@@ -4,7 +4,7 @@
 <!--   <param name="use_sim_time" value="true" /> -->
 
   <!--   map_server -->
-  <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/map_narrow.yaml"/>
+  <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/mapv0.2.yaml"/>
 <!--   <node pkg="map_server" type="map_server" name="map_server" args="$(find smallrobotv2)/map/mapv0.0.yaml"/> -->
 
   <!--   als -->

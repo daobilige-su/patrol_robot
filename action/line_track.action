@@ -1,0 +1,9 @@
+# Define the goal
+int32[] target_location  
+---
+# Define the result
+int32[] target_result
+---
+# Define a feedback message
+int32[] target_feedback
+
