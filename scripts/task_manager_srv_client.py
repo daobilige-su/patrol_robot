@@ -13,9 +13,10 @@ import math
 
 pi = math.pi
 
-task1 = numpy.array([[1, 2.0, -0.5, 0, 0, 0, 0, 0, 0, 0],
-                     [1, 3.0, -0.5, 0, 0, 0, 0, 0, 0, 0],
-                     [1, 4.5, -0.5, 0, 0, 0, 0, 0, 0, 0]])
+task1 = numpy.array([[1, 2.7, -0.45, 0, 0, 0, 0, 0, 0, 0],
+                     [2, 7, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [1, 4.2, -3.45, pi, 0, 0, 0, 0, 0, 0],
+                     [2, 7, 0, 0, 0, 0, 0, 0, 0, 0]])
 
 task2 = numpy.array([[1, 4.5, -2.0, -pi/2, 0, 0, 0, 0, 0, 0]])
 
@@ -50,11 +51,11 @@ if __name__ == "__main__":
         send_task_list(task1, task_list_request, msg)
         rospy.sleep(20)
 
-        send_task_list(task2, task_list_request, msg)
-        rospy.sleep(20)
-
-        send_task_list(task3, task_list_request, msg)
-        rospy.sleep(20)
+        # send_task_list(task2, task_list_request, msg)
+        # rospy.sleep(20)
+        #
+        # send_task_list(task3, task_list_request, msg)
+        # rospy.sleep(20)
 
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)

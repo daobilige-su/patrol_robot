@@ -62,8 +62,8 @@ class TaskManager:
 
     def execute_task(self):
         task_list = self.task_list[0,:].copy()
-        rospy.loginfo('Executing task: ')
-        rospy.loginfo(task_list)
+        rospy.logerr('Executing task: ')
+        rospy.logerr(task_list)
 
         self.task_list[0:10,:] = self.task_list[1:11,:].copy()
         self.task_list[10:11,:] = numpy.zeros((1,10)).copy()
@@ -76,8 +76,8 @@ class TaskManager:
         elif task_list[0]==1: # move_base mode
             goal_pose = task_list[1:4].copy()
             self.move_base_action(goal_pose)
-        elif task_list[0]==1: # track_line mode
-            move_dir = task_list[0].copy()
+        elif task_list[0]==2: # track_line mode
+            move_dir = task_list[1].copy()
             self.line_track_action(move_dir)
         else:
             rospy.logwarn('unknown task code.')
@@ -93,7 +93,8 @@ class TaskManager:
         # sequence: e.g. 'sxyz'
         # first character: rotations are applied to ‘s’tatic or ‘r’otating frame
         # remaining characters: successive rotation axis ‘x’, ‘y’, or ‘z’
-        quat = transformations.quaternion_from_euler(0, 0, pose[2], 'rzyx')
+        quat = transformations.quaternion_from_euler(0, 0, pose[2], 'rxyz')
+        rospy.logerr(quat)
 
         goal.target_pose.pose.position.x = pose[0]
         goal.target_pose.pose.position.y = pose[1]
@@ -114,13 +115,13 @@ class TaskManager:
     # 9, turn 180
     def line_track_action(self, move_dir):
         goal = patrol_robot.msg.line_trackGoal()
-        goal.target_location = [move_dir]
+        goal.target_location = [int(move_dir)]
 
         self.line_track_client.send_goal(goal)
-        rospy.loginfo('line_track_client: sent new goal (%f)' % (goal.target_location[0]))
+        rospy.logerr('line_track_client: sent new goal (%f)' % (goal.target_location[0]))
 
         self.line_track_client.wait_for_result()
-        rospy.loginfo("line_track_client: goal completed")
+        rospy.logerr("line_track_client: goal completed")
 
     def stop(self):
         msg = Twist()

@@ -256,6 +256,46 @@ class line_track_action(object):
 
         # move forward without jump, stop when no reading
         if move_dir == 7:
+            # check if line is detected
+            array_data = self.line_sensor_data
+            array_data_sum = np.sum(array_data)
+            found = 0
+            if array_data_sum == 0:
+                rospy.logerr('line_track_server: line is not detected on init config, search for line by rotation.')
+                for n in range(20):
+                    if found==1:
+                        break
+                    msg.linear.x = 0
+                    msg.angular.z = w_const*4
+                    self.cmd_vel_pub.publish(msg)
+                    rospy.sleep(unit_t*10)
+
+                    array_data = self.line_sensor_data
+                    array_data_sum = np.sum(array_data)
+                    if array_data_sum > 0:
+                        found=1
+
+                for n in range(40):
+                    if found == 1:
+                        break
+                    msg.linear.x = 0
+                    msg.angular.z = -w_const*4
+                    self.cmd_vel_pub.publish(msg)
+                    rospy.sleep(unit_t*10)
+
+                    array_data = self.line_sensor_data
+                    array_data_sum = np.sum(array_data)
+                    if array_data_sum > 0:
+                        found = 1
+            else:
+                found = 1
+
+            if found==1:
+                rospy.logerr('line_track_server: line found. line tracking is started.')
+            else:
+                rospy.logerr('line_track_server: line NOT found. line tracking is skipped.')
+
+
             while not rospy.is_shutdown():
                 array_data = self.line_sensor_data
                 array_data_len = array_data.shape[1]
