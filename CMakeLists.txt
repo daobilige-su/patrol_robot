@@ -139,7 +139,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/patrol_robot.cpp
+#   map/${PROJECT_NAME}/patrol_robot.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -150,7 +150,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/patrol_robot_node.cpp)
+# add_executable(${PROJECT_NAME}_node map/patrol_robot_node.cpp)
 add_executable(sim_to_pc2 src/sim_to_pc2.cpp)
 add_executable(pc2_to_laserscan src/pc2_to_laserscan.cpp)
 

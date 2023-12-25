@@ -68,15 +68,15 @@ class TaskManager:
         self.task_list[0:10,:] = self.task_list[1:11,:].copy()
         self.task_list[10:11,:] = numpy.zeros((1,10)).copy()
 
-        if task_list[0]==0:
+        if task_list[0]==0: # stop mode, [0, ...]
             self.move_base_client.cancel_all_goals()
             self.line_track_client.cancel_all_goals()
             # publish all zero velocity cmd
             self.stop()
-        elif task_list[0]==1: # move_base mode
+        elif task_list[0]==1: # move_base mode, [1, x, y, theta, ...]
             goal_pose = task_list[1:4].copy()
             self.move_base_action(goal_pose)
-        elif task_list[0]==2: # track_line mode
+        elif task_list[0]==2: # track_line mode, [2, dir, ...]
             move_dir = task_list[1].copy()
             self.line_track_action(move_dir)
         else:
