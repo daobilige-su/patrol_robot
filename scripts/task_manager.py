@@ -24,7 +24,8 @@ from tf import transformations
 class TaskManager:
     def __init__(self):
         # self.sub = rospy.Subscriber("chatter", String, self.callback)
-        self.task_list = np.zeros((20, 10))
+        self.task_list = None  # np.zeros((20, 10))
+        self.no_more_task_warned = 0
         self.task_sleep_rate = rospy.Rate(10)
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
 
@@ -47,7 +48,7 @@ class TaskManager:
 
     # when client want to update task_list, cancel the current jobs and update the
     def update_task_list(self, req):
-        task_list = np.array(req.list.data).reshape((20, 10))
+        task_list = np.array(req.list.data).reshape((-1, 10))
         rospy.loginfo('received new task_list: ')
         rospy.loginfo(task_list)
         self.task_list = task_list.copy()  # copy a new duplicate, do not assign the reference
@@ -61,26 +62,40 @@ class TaskManager:
         return True
 
     def execute_task(self):
-        task_list = self.task_list[0,:].copy()
-        rospy.logerr('Executing task: ')
-        rospy.logerr(task_list)
+        if self.task_list is not None:
+            self.no_more_task_warned = 0
 
-        self.task_list[0:10,:] = self.task_list[1:11,:].copy()
-        self.task_list[10:11,:] = numpy.zeros((1,10)).copy()
-
-        if task_list[0]==0: # stop mode, [0, ...]
-            self.move_base_client.cancel_all_goals()
-            self.line_track_client.cancel_all_goals()
-            # publish all zero velocity cmd
-            self.stop()
-        elif task_list[0]==1: # move_base mode, [1, x, y, theta, ...]
-            goal_pose = task_list[1:4].copy()
-            self.move_base_action(goal_pose)
-        elif task_list[0]==2: # track_line mode, [2, dir, ...]
-            move_dir = task_list[1].copy()
-            self.line_track_action(move_dir)
+            task_num = self.task_list.shape[0]
+            task_list_cur = self.task_list[0, :].copy()
+            rospy.logwarn('Executing task: ')
+            rospy.logwarn(task_list_cur)
+    
+            if task_num==1:
+                self.task_list = None
+            else:
+                self.task_list = self.task_list[1:task_num,:].copy()
+            # self.task_list_cur[0:10,:] = self.task_list_cur[1:11,:].copy()
+            # self.task_list_cur[10:11,:] = numpy.zeros((1,10)).copy()
+    
+            if task_list_cur[0]==0: # stop mode, [0, ...]
+                self.move_base_client.cancel_all_goals()
+                self.line_track_client.cancel_all_goals()
+                # publish all zero velocity cmd
+                self.stop()
+            elif task_list_cur[0]==1: # move_base mode, [1, x, y, theta, ...]
+                goal_pose = task_list_cur[1:4].copy()
+                self.move_base_action(goal_pose)
+            elif task_list_cur[0]==2: # track_line mode, [2, dir, ...]
+                move_dir = task_list_cur[1].copy()
+                self.line_track_action(move_dir)
+            elif task_list_cur[0]==9: # do nothing mode, [9, ...]
+                pass
+            else:
+                rospy.logerr('unknown task code.')
         else:
-            rospy.logwarn('unknown task code.')
+            if not self.no_more_task_warned:
+                rospy.logwarn('Task list empty now.')
+                self.no_more_task_warned = 1
 
     def move_base_action(self, pose):
         goal = move_base_msgs.msg.MoveBaseGoal()
@@ -94,7 +109,7 @@ class TaskManager:
         # first character: rotations are applied to ‘s’tatic or ‘r’otating frame
         # remaining characters: successive rotation axis ‘x’, ‘y’, or ‘z’
         quat = transformations.quaternion_from_euler(0, 0, pose[2], 'rxyz')
-        rospy.logerr(quat)
+        # rospy.logerr(quat)
 
         goal.target_pose.pose.position.x = pose[0]
         goal.target_pose.pose.position.y = pose[1]
