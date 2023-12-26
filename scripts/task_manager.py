@@ -89,7 +89,8 @@ class TaskManager:
                 move_dir = task_list_cur[1].copy()
                 self.line_track_action(move_dir)
             elif task_list_cur[0]==9: # do nothing mode, [9, ...]
-                pass
+                t = task_list_cur[1].copy()
+                rospy.sleep(t)
             else:
                 rospy.logerr('unknown task code.')
         else:

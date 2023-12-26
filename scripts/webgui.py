@@ -3,6 +3,7 @@ import math
 from nicegui import ui
 from nicegui.events import MouseEventArguments
 from PIL import Image
+import pandas as pd
 
 import rospy
 import rospkg
@@ -62,8 +63,8 @@ class WebUI:
         self.map_grid_on = 0
         self.map_axis_on = 0
 
-        self.task_list = np.zeros((20,10)) # 0: stop, 1: move_base, 2: line_track, 3: take_photo, ... 9: do nothing
-        self.task_list[:, 0] = np.ones((20,))*9
+        self.task_list = np.zeros((10,10)) # 0: stop, 1: move_base, 2: line_track, 3: take_photo, ... 9: do nothing
+        self.task_list[:, 0] = np.ones((self.task_list.shape[0],))*9
 
         self.map_mouse_down_pt_pix = [0.0, 0.0]
         self.map_mouse_down_pt_m = [0.0, 0.0]
@@ -111,50 +112,15 @@ class WebUI:
                 task_chbox = ui.checkbox('Enable', value=True)
                 with ui.column().bind_visibility_from(task_chbox, 'value'):
                     ui.label('Current Task:')
-                    self.aggrid = ui.aggrid({
-                        'defaultColDef': {'flex': 1},
-                        'columnDefs': [
-                            {'headerName': 'Index', 'field': 'index'}, #, 'checkboxSelection': True},
-                            {'headerName': 'Action', 'field': 'action'},
-                            {'headerName': 'P1', 'field': 'p1'},
-                            {'headerName': 'P2', 'field': 'p2'},
-                            {'headerName': 'P3', 'field': 'p3'},
-                            {'headerName': 'P4', 'field': 'p4'},
-                            {'headerName': 'P5', 'field': 'p5'},
-                            {'headerName': 'P6', 'field': 'p6'},
-                            {'headerName': 'P7', 'field': 'p7'},
-                            {'headerName': 'P8', 'field': 'p8'},
-                            {'headerName': 'P9', 'field': 'p9'},
-                        ],
-                        'rowData': [
-                            {'index': 1, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 2, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 3, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 4, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 5, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 6, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 7, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 8, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 9, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 10, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 11, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 12, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 13, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 14, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 15, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 16, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 17, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 18, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 19, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                            {'index': 20, 'action': 0, 'p1': 0, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0, 'p6': 0, 'p7': 0, 'p8': 0, 'p9': 0},
-                        ],
-                        'rowSelection': 'single',
-                    }).classes('w-[40rem]')
-                    self.update_aggrid()
+                    self.df = pd.DataFrame(np.block([[(np.arange(self.task_list.shape[0])+1).reshape((-1,1)), self.task_list]]), columns=['index', 'action', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'])
+                    self.aggrid_row = ui.row()
+                    with self.aggrid_row:
+                        self.aggrid = ui.aggrid.from_pandas(self.df, options={"rowSelection": "single"}).classes('w-[40rem]')
                     with ui.row():
                         ui.button('Clear', on_click=self.task_list_clear)
                         ui.button('Send', on_click=self.task_list_send)
                         ui.button('Stop', on_click=self.task_list_stop)
+                        ui.button('Add', on_click=self.task_list_add)
                         self.task_list_show_sw = ui.switch('Show On Map', on_change=self.task_list_show)
                     with ui.row():
                         ui.label('Stop:       ').classes('w-24')
@@ -169,6 +135,10 @@ class WebUI:
                     with ui.row():
                         ui.label('Line Track: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_line_track)
+                    with ui.row():
+                        ui.label('Wait: ').classes('w-24')
+                        ui.button('Insert', on_click=self.task_list_insert_wait)
+                        self.wait_input_t = ui.input('t(s)', value='0.0').classes('w-8')
 
 
 
@@ -310,7 +280,7 @@ class WebUI:
                 self.ii_content_grid += f'<line x1="{x_min}" y1="{y}" x2="{x_max}" y2="{y}" stroke-dasharray="5,5" style="stroke:rgb(55,55,55);stroke-width:1" />'
 
     def update_aggrid(self):
-        for n in range(20):
+        for n in range(self.task_list.shape[0]):
             self.aggrid.options['rowData'][n]['action'] = self.task_list[n, 0]
             self.aggrid.options['rowData'][n]['p1'] = self.task_list[n, 1]
             self.aggrid.options['rowData'][n]['p2'] = self.task_list[n, 2]
@@ -324,8 +294,8 @@ class WebUI:
         self.aggrid.update()
 
     def task_list_clear(self): # do nothing
-        self.task_list = np.zeros((20, 10))
-        self.task_list[:, 0] = np.ones((20,)) * 9
+        self.task_list = self.task_list*0.0
+        self.task_list[:, 0] = np.ones((self.task_list.shape[0],)) * 9
         self.update_aggrid()
         self.compute_task_content()
         self.map_ii_content_handler()
@@ -339,16 +309,16 @@ class WebUI:
         self.map_ii_content_handler()
 
     def task_list_stop(self):  # stop
-        self.task_list = np.zeros((20, 10))
+        self.task_list = self.task_list * 0.0
         self.update_aggrid()
         self.compute_task_content()
         self.map_ii_content_handler()
 
     def task_list_send(self):
         if self.param['server_connection']:
-            task_list = np.zeros((20, 10))
-
             tasks_num = self.task_list.shape[0]
+            task_list = np.zeros((tasks_num, 10))
+
             task_list[0:tasks_num, :] = self.task_list
 
             task_list_flatten = task_list.reshape((1, -1))[0]
@@ -360,6 +330,16 @@ class WebUI:
             resp = self.task_list_request(self.task_list_msg)
             rospy.loginfo('response is: %s' % (resp))
         ui.notify('task_list sent')
+
+    def task_list_add(self):
+        self.task_list = np.block([[self.task_list],[np.block([[np.ones((5,1))*9,np.zeros((5,9))]])]])
+        self.df = pd.DataFrame(np.block([[(np.arange(self.task_list.shape[0]) + 1).reshape((-1, 1)), self.task_list]]),
+                               columns=['index', 'action', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'])
+
+        self.aggrid.delete()
+        with self.aggrid_row:
+            self.aggrid = ui.aggrid.from_pandas(self.df, options={"rowSelection": "single"}).classes('w-[40rem]')
+        self.aggrid.update()
 
     async def task_list_insert_stop(self):
         row = await self.aggrid.get_selected_row()
@@ -395,6 +375,17 @@ class WebUI:
         else:
             ui.notify('No row selected!')
 
+    async def task_list_insert_wait(self):
+        row = await self.aggrid.get_selected_row()
+        if row:
+            row_idx = row['index'] - 1
+            self.task_list[row_idx, :] = np.array([9, self.wait_input_t.value, 0, 0, 0, 0, 0, 0, 0, 0])
+            self.update_aggrid()
+            self.compute_task_content()
+            self.map_ii_content_handler()
+        else:
+            ui.notify('No row selected!')
+
     def transform_map_to_image(self, map):
         image = [0.0, 0.0]
         image[0] = (map[0] + self.map_ct_m[0])/self.map_res
@@ -407,7 +398,7 @@ class WebUI:
         pre_pose = self.robot_pose_cur
         pre_task_is_movebase = 1
 
-        for n in range(20):
+        for n in range(self.task_list.shape[0]):
             task = self.task_list[n, :]
             if round(task[0]) == 1:  # move_base
                 if pre_task_is_movebase:
