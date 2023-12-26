@@ -10,6 +10,9 @@ from geometry_msgs.msg import Twist
 import numpy as np
 import yaml
 
+from patrol_robot.srv import *
+from std_msgs.msg import Float32MultiArray
+
 class Demo:
     def __init__(self):
         self.number = 1
@@ -52,6 +55,9 @@ class WebUI:
         self.compute_map_axis_content()
         self.ii_content_grid = ''
         self.compute_map_grid_content()
+        self.ii_task_content = ''
+        self.ii_mouse_arrow_content = ''
+        self.task_show_on = 0
 
         self.map_grid_on = 0
         self.map_axis_on = 0
@@ -63,18 +69,22 @@ class WebUI:
         self.map_mouse_down_pt_m = [0.0, 0.0]
         self.map_mouse_up_pt_pix = [0.0, 0.0]
         self.map_mouse_up_pt_m = [0.0, 0.0]
+        self.map_mouse_is_down = 0
+
+        self.robot_pose_cur = self.param['robot_pose_init']
 
         with ui.row():
             ui.label('5G工业巡检机器人UI控制界面')
             ui.label('Patrol Robot Web GUI (Powered by NiceGUI)')
 
         with ui.row():
-            with ui.card().classes('w-[52rem] h-[42rem] bg-orange-3 border'):
+            with ui.card().classes('w-[52rem] h-[52rem] bg-orange-3 border'):
                 ui.button('Map: ')
                 self.sa = ui.scroll_area().classes('w-[50rem] h-[40rem]')
                 with self.sa:
                     # ii = ui.image(self.map_pgm).classes('w-[100rem]')
-                    self.ii = ui.interactive_image(self.map_pgm, on_mouse=self.map_mouse_handler, events=['mousedown', 'mouseup'], cross=True).classes(f'w-[{self.map_show_size[0]}rem]')
+                    self.ii = ui.interactive_image(self.map_pgm, on_mouse=self.map_mouse_handler, events=['mousedown', 'mouseup', 'mousemove'], \
+                                                   cross=True).classes(f'w-[{self.map_show_size[0]/self.param["map_vis_shrink_factor"]}rem]')
                     self.ii.content += self.ii_fixed_content
                     # self.ii.content += '<line x1="50" y1="50" x2="250" y2="50" stroke="red" stroke-width="5" marker-end="url(#arrow)"/>'
                 with ui.row():
@@ -83,7 +93,7 @@ class WebUI:
                     self.map_grid_sw = ui.switch('Grid On', value=True, on_change=self.map_grid_handler)
                     self.map_grid_handler()
                     self.map_center_but = ui.button('Map Center', on_click=self.map_center_handler)
-            with ui.card().classes('border').classes('w-[15rem] h-[42rem]'):
+            with ui.card().classes('border').classes('w-[15rem] h-[52rem]'):
                 ui.button('Control: ')
                 control_chbox = ui.checkbox('Enable', value=True)
                 with ui.column().bind_visibility_from(control_chbox, 'value'):
@@ -96,7 +106,7 @@ class WebUI:
                     # ui.slider(min=1, max=3).bind_value(self.demo, 'number')
                     # ui.toggle({1: 'A', 2: 'B', 3: 'C'}).bind_value(self.demo, 'number')
                     # ui.number().bind_value(self.demo, 'number')
-            with ui.card().classes('border').classes('w-[42rem] h-[42rem]'):
+            with ui.card().classes('border').classes('w-[42rem] h-[52rem]'):
                 ui.button('Task Client: ')
                 task_chbox = ui.checkbox('Enable', value=True)
                 with ui.column().bind_visibility_from(task_chbox, 'value'):
@@ -142,10 +152,10 @@ class WebUI:
                     }).classes('w-[40rem]')
                     self.update_aggrid()
                     with ui.row():
-                        self.task_list_show_sw = ui.switch('Show On', on_change=self.task_list_show)
                         ui.button('Clear', on_click=self.task_list_clear)
                         ui.button('Send', on_click=self.task_list_send)
                         ui.button('Stop', on_click=self.task_list_stop)
+                        self.task_list_show_sw = ui.switch('Show On Map', on_change=self.task_list_show)
                     with ui.row():
                         ui.label('Stop:       ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_stop)
@@ -166,6 +176,19 @@ class WebUI:
         rospy.init_node('webgui_node')
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
 
+        # establish client server communication
+        if self.param['server_connection']:
+            print('starting client')
+            rospy.wait_for_service('TaskList')
+            print('service connected.')
+
+        self.task_list_request = rospy.ServiceProxy('TaskList', TaskList)
+        self.task_list_msg = Float32MultiArray()
+
+
+
+
+
         ui.run(title='Patrol Robot Web GUI', reload=False, show=False)
 
     def map_mouse_handler(self, e: MouseEventArguments):
@@ -179,6 +202,7 @@ class WebUI:
             self.map_mouse_down_pt_m[1] = -(e.image_y-self.map_ct_px[1])*self.map_res
             self.movebase_input_x.value = self.map_mouse_down_pt_m[0]
             self.movebase_input_y.value = self.map_mouse_down_pt_m[1]
+            self.map_mouse_is_down = 1
         elif e.type == 'mouseup':
             self.map_mouse_up_pt_pix[0] = e.image_x
             self.map_mouse_up_pt_pix[1] = e.image_y
@@ -186,6 +210,32 @@ class WebUI:
             self.map_mouse_up_pt_m[1] = -(e.image_y - self.map_ct_px[1]) * self.map_res
             theta = math.atan2(self.map_mouse_up_pt_m[1]-self.map_mouse_down_pt_m[1] ,self.map_mouse_up_pt_m[0]-self.map_mouse_down_pt_m[0])
             self.movebase_input_theta.value = theta
+
+            arrow_end_pt_pix = [0.0, 0.0]
+            arrow_end_pt_pix[0] = self.map_mouse_down_pt_pix[0] + math.cos(theta)*self.param['map_arrow_len']/self.map_res
+            arrow_end_pt_pix[1] = self.map_mouse_down_pt_pix[1] - math.sin(theta)*self.param['map_arrow_len']/self.map_res
+            self.ii_mouse_arrow_content = f'<line x1="{self.map_mouse_down_pt_pix[0]}" y1="{self.map_mouse_down_pt_pix[1]}" ' + \
+                                  f'x2="{arrow_end_pt_pix[0]}" y2="{arrow_end_pt_pix[1]}" ' + \
+                                  'stroke="yellow" stroke-width="5" marker-end="url(#arrow)"/>'
+            self.map_ii_content_handler()
+            self.map_mouse_is_down = 0
+        elif e.type == 'mousemove':
+            if self.map_mouse_is_down:
+                map_mouse_move_pt_pix = [0.0, 0.0]
+                map_mouse_move_pt_m = [0.0, 0.0]
+                map_mouse_move_pt_pix[0] = e.image_x
+                map_mouse_move_pt_pix[1] = e.image_y
+                map_mouse_move_pt_m[0] = (e.image_x - self.map_ct_px[0]) * self.map_res
+                map_mouse_move_pt_m[1] = -(e.image_y - self.map_ct_px[1]) * self.map_res
+                theta = math.atan2(map_mouse_move_pt_m[1] - self.map_mouse_down_pt_m[1], map_mouse_move_pt_m[0] - self.map_mouse_down_pt_m[0])
+
+                arrow_end_pt_pix = [0.0, 0.0]
+                arrow_end_pt_pix[0] = self.map_mouse_down_pt_pix[0] + math.cos(theta) * self.param['map_arrow_len'] / self.map_res
+                arrow_end_pt_pix[1] = self.map_mouse_down_pt_pix[1] - math.sin(theta) * self.param['map_arrow_len'] / self.map_res
+                self.ii_mouse_arrow_content = f'<line x1="{self.map_mouse_down_pt_pix[0]}" y1="{self.map_mouse_down_pt_pix[1]}" ' + \
+                                      f'x2="{arrow_end_pt_pix[0]}" y2="{arrow_end_pt_pix[1]}" ' + \
+                                      'stroke="yellow" stroke-width="5" marker-end="url(#arrow)"/>'
+                self.map_ii_content_handler()
 
 
     def send_cmd_vel(self, vx, w):
@@ -197,8 +247,8 @@ class WebUI:
 
     def map_center_handler(self):
         # scroll_to sets upper left conner, so minus half of the size of area, e.g. horizontal: 50 rem / 2 * 16
-        self.sa.scroll_to(pixels=self.map_ct_px[0]-25*16, axis='horizontal')
-        self.sa.scroll_to(pixels=self.map_ct_px[1]-20*16, axis='vertical')
+        self.sa.scroll_to(pixels=self.map_ct_px[0]/self.param['map_vis_shrink_factor']-25*16, axis='horizontal')
+        self.sa.scroll_to(pixels=self.map_ct_px[1]/self.param['map_vis_shrink_factor']-20*16, axis='vertical')
 
     def map_axis_handler(self):
         if self.map_axis_sw.value:
@@ -220,6 +270,10 @@ class WebUI:
             self.ii_fixed_content += self.ii_content_axis
         if self.map_grid_on:
             self.ii_fixed_content += self.ii_content_grid
+
+        self.ii_add_content = self.ii_mouse_arrow_content
+        if self.task_show_on:
+            self.ii_add_content += self.ii_task_content
 
         self.ii.content = self.ii_fixed_content + self.ii_add_content
 
@@ -273,15 +327,38 @@ class WebUI:
         self.task_list = np.zeros((20, 10))
         self.task_list[:, 0] = np.ones((20,)) * 9
         self.update_aggrid()
+        self.compute_task_content()
+        self.map_ii_content_handler()
 
     def task_list_show(self):
-        ui.notify('task_list show')
+        if self.task_list_show_sw.value:
+            self.task_show_on = 1
+        else:
+            self.task_show_on = 0
+        self.compute_task_content()
+        self.map_ii_content_handler()
 
     def task_list_stop(self):  # stop
         self.task_list = np.zeros((20, 10))
         self.update_aggrid()
+        self.compute_task_content()
+        self.map_ii_content_handler()
 
     def task_list_send(self):
+        if self.param['server_connection']:
+            task_list = np.zeros((20, 10))
+
+            tasks_num = self.task_list.shape[0]
+            task_list[0:tasks_num, :] = self.task_list
+
+            task_list_flatten = task_list.reshape((1, -1))[0]
+            task_list_flatten_list = task_list_flatten.tolist()
+
+            self.task_list_msg.data = task_list_flatten_list
+
+            rospy.loginfo('send TaskList request: ')
+            resp = self.task_list_request(self.task_list_msg)
+            rospy.loginfo('response is: %s' % (resp))
         ui.notify('task_list sent')
 
     async def task_list_insert_stop(self):
@@ -290,6 +367,8 @@ class WebUI:
             row_idx = row['index']-1
             self.task_list[row_idx, :] = np.zeros((10,))
             self.update_aggrid()
+            self.compute_task_content()
+            self.map_ii_content_handler()
         else:
             ui.notify('No row selected!')
 
@@ -297,11 +376,11 @@ class WebUI:
         row = await self.aggrid.get_selected_row()
         if row:
             row_idx = row['index']-1
-            print(self.movebase_input_x.value)
             self.task_list[row_idx, :] = np.array([1, self.movebase_input_x.value, self.movebase_input_y.value,
                                                    self.movebase_input_theta.value, 0, 0, 0, 0, 0, 0])
-            print(self.task_list)
             self.update_aggrid()
+            self.compute_task_content()
+            self.map_ii_content_handler()
         else:
             ui.notify('No row selected!')
 
@@ -311,11 +390,55 @@ class WebUI:
             row_idx = row['index'] - 1
             self.task_list[row_idx, :] = np.array([2, 7, 0, 0, 0, 0, 0, 0, 0, 0])
             self.update_aggrid()
+            self.compute_task_content()
+            self.map_ii_content_handler()
         else:
             ui.notify('No row selected!')
 
+    def transform_map_to_image(self, map):
+        image = [0.0, 0.0]
+        image[0] = (map[0] + self.map_ct_m[0])/self.map_res
+        image[1] = (-map[1] + self.map_ct_m[1]) / self.map_res
+        return image
 
-            # if __name__ in {"__main__", "__mp_main__"}:
+    def compute_task_content(self):
+        self.ii_task_content = ''
+        # ui.notify('task_list show')
+        pre_pose = self.robot_pose_cur
+        pre_task_is_movebase = 1
+
+        for n in range(20):
+            task = self.task_list[n, :]
+            if round(task[0]) == 1:  # move_base
+                if pre_task_is_movebase:
+                    color = 'blue'
+                else:
+                    color = 'red'
+                xy_pix = self.transform_map_to_image(task[1:3])
+                self.ii_task_content += f'<circle cx="{xy_pix[0]}" cy="{xy_pix[1]}" r="{15 / self.param["map_vis_shrink_factor"]}"' + \
+                                        f'fill="none" stroke="{color}" stroke-width="4" />'
+                self.ii_task_content += self.compute_arrow_content(task[1:4], 'yellow', self.param['map_arrow_len'])
+
+                pre_xy_pix = self.transform_map_to_image(pre_pose[0:2])
+                self.ii_task_content += f'<line x1="{pre_xy_pix[0]}" y1="{pre_xy_pix[1]}" x2="{xy_pix[0]}" y2="{xy_pix[1]}"' + \
+                                        f'stroke-dasharray="5,5" style="stroke:{color};stroke-width:2" />'
+                pre_pose = [task[1], task[2], task[3]]
+
+                pre_task_is_movebase = 1
+            elif round(task[0]) == 2:  # line_track
+                pre_task_is_movebase = 0
+
+    def compute_arrow_content(self, pose, color, arrow_len):
+        start_pt_pix = self.transform_map_to_image(pose[0:2])
+        end_pt_pix = [0.0, 0.0]
+        end_pt_pix[0] = start_pt_pix[0] + math.cos(pose[2]) * arrow_len / self.map_res
+        end_pt_pix[1] = start_pt_pix[1] - math.sin(pose[2]) * arrow_len / self.map_res
+        content = f'<line x1="{start_pt_pix[0]}" y1="{start_pt_pix[1]}" ' + f'x2="{end_pt_pix[0]}" y2="{end_pt_pix[1]}" ' + \
+                  f'stroke="{color}" stroke-width="5" marker-end="url(#arrow)"/>'
+        return content
+
+
+# if __name__ in {"__main__", "__mp_main__"}:
 # rospy.init_node('webgui_node')
 # server = line_track_action()
 # rospy.spin()

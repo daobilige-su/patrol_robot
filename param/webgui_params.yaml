@@ -1,3 +1,7 @@
 # used in webgui.py
 map: mapv0.2.yaml
 grid_size: 1.0
+map_arrow_len: 0.5
+map_vis_shrink_factor: 2.0
+robot_pose_init: [0.0, 0.0, 0.0]
+server_connection: 1
