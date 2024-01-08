@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "sim_array_to_pc2_node");
     ros::NodeHandle node;
     ros::Subscriber sub = node.subscribe("vpl16_floatarray", 2, vpl16Callback); //
-    cloud_pub = node.advertise<sensor_msgs::PointCloud2>("vpl16",2);
+    cloud_pub = node.advertise<sensor_msgs::PointCloud2>("vlp16",2);
     ros::spin();  //ros::spin()库是响应循环，消息到达时调用函数chatterCallback，CTRL+C结束循环
     return 0;
 }

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <!--  start c16 lidar -->
+  <include file="$(find lslidar_driver)/launch/lslidar_c16.launch" />
+
+  <node pkg="patrol_robot" type="pc2_to_laserscan" name="pc2_to_laserscan" output="screen">
+    <remap from="vlp16" to="lslidar_point_cloud"/>
+  </node>
+
+  <node pkg="tf" type="static_transform_publisher" name="laser_baselink_broadcaster" args="0 0 0 0 0 0 1 base_link laser_link 10" />
+<!--   <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/cloud_vis.rviz"/> -->
+</launch> 
+

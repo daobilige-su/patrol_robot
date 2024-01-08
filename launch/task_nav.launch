@@ -7,7 +7,7 @@
   <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/mapv0.2.yaml"/>
 
   <!--   if sim, process vlp16 in sim -->
-  <include file="$(find patrol_robot)/launch/handle_sim_vlp16.launch" />
+<!--   <include file="$(find patrol_robot)/launch/handle_sim_vlp16.launch" /> -->
 
   <!--   als -->
   <include file="$(find als_ros)/launch/mcl_patrol_robot.launch" />

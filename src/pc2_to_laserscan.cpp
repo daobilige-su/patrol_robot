@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "pc2_to_laserscan_node");
     ros::NodeHandle node;
-    ros::Subscriber sub = node.subscribe("vpl16", 2, vpl16Callback); //
+    ros::Subscriber sub = node.subscribe("vlp16", 2, vpl16Callback); //
     laser_pub = node.advertise<sensor_msgs::LaserScan>("scan",2);
     ros::spin();  //ros::spin()库是响应循环，消息到达时调用函数chatterCallback，CTRL+C结束循环
     return 0;
