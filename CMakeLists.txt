@@ -7,6 +7,9 @@ project(patrol_robot)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(yaml-cpp REQUIRED)
+find_package(cmake_modules REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   nav_msgs
@@ -15,6 +18,9 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   message_generation
+  message_filters
+  tf
+  roslib
 )
 
 ## System dependencies are found with CMake's conventions
@@ -120,7 +126,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES patrol_robot
 #  CATKIN_DEPENDS actionlib_msgs nav_msgs roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
@@ -133,14 +139,23 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
+  ${YAML_CPP_INCLUDE_DIR}
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   map/${PROJECT_NAME}/patrol_robot.cpp
 # )
+#add_library(complementary_filter
+#  include/patrol_robot/complementary_filter.h
+#  include/patrol_robot/complementary_filter_ros.h
+#  src/imu_filter/complementary_filter.cpp
+#  src/imu_filter/complementary_filter_ros.cpp
+#)
+#target_link_libraries(complementary_filter ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -153,6 +168,7 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node map/patrol_robot_node.cpp)
 add_executable(sim_to_pc2 src/sim_to_pc2.cpp)
 add_executable(pc2_to_laserscan src/pc2_to_laserscan.cpp)
+add_executable(complementary_filter_node src/imu_filter/complementary_filter_node.cpp src/imu_filter/complementary_filter.cpp src/imu_filter/complementary_filter_ros.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -172,6 +188,11 @@ target_link_libraries(sim_to_pc2
   ${catkin_LIBRARIES}
 )
 target_link_libraries(pc2_to_laserscan
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
+target_link_libraries(complementary_filter_node
+  # complementary_filter
   ${catkin_LIBRARIES}
 )
 

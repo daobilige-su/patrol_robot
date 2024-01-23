@@ -3,5 +3,18 @@
   <node pkg="patrol_robot" type="pc2_to_laserscan" name="pc2_to_laserscan" output="screen"/>
   <node pkg="patrol_robot" type="sim_to_pc2" name="sim_to_pc2" output="screen"/>
 <!--   <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/cloud_vis.rviz"/> -->
+
+
+<!--   <include file="$(find patrol_robot)/launch/complementary_filter.launch" /> -->
+  <node pkg = "patrol_robot" type = "imu_frame_change.py" name = "imu_frame_change" output = "screen"/>
+  <node pkg="patrol_robot" type="complementary_filter_node"
+      name="complementary_filter_gain_node" output="screen">
+    <param name="do_bias_estimation" value="true"/>
+    <param name="do_adaptive_gain" value="true"/>
+    <param name="use_mag" value="false"/>
+    <param name="gain_acc" value="0.01"/>
+    <param name="gain_mag" value="0.01"/>
+    <param name="~publish_debug_topics" value="true"/>
+  </node>
 </launch> 
 

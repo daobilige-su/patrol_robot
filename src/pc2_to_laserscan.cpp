@@ -1,10 +1,14 @@
 #include "ros/ros.h"
-#include "std_msgs/Float32MultiArray.h"
+#include <ros/package.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
-
+#include <Eigen/Dense>
+#include <geometry_msgs/Vector3Stamped.h>
+#include <vector>
+#include "yaml-cpp/yaml.h"
 ros::Publisher laser_pub;//全局变量Pub
+ros::Publisher new_cld_pub;
 
 // ROS Parameters
 //target_frame: laser_link # Leave disabled to output scan in pointcloud frame
@@ -20,19 +24,40 @@ ros::Publisher laser_pub;//全局变量Pub
 //range_max: 100
 //use_inf: true
 //inf_epsilon: 1.0
-
-std::string target_frame_ = "laser_link";
-double tolerance_;
-double min_height_=-0.465, max_height_=1, angle_min_=-3.14, angle_max_=3.14, angle_increment_=0.017, scan_time_=0.1, range_min_=0.5, range_max_=100; //0.0045
+// 需要在cmakelist/xml中导入roslib,获取pkg绝对路径
+std::string package_path = ros::package::getPath("patrol_robot");
+std::string yaml_path=package_path+"/param/ptcld_to_scan.yaml";
+YAML::Node config_yaml=YAML::LoadFile(yaml_path);//调用yaml文件，（需要apt-install:libyaml-cpp-dev并修改camke添加库文件）
+//std::string target_frame_ = "laser_link";
+//double tolerance_;//ls_z_min=-0.32;sim_z_min=-0.465 ——angle_max0.17
+double min_height_=config_yaml["min_height"].as<float>(), max_height_=config_yaml["max_height"].as<float>(), angle_min_=config_yaml["angle_min"].as<float>(),
+        angle_max_=config_yaml["angle_max"].as<float>(), angle_increment_=config_yaml["angle_increment"].as<float>(), scan_time_=config_yaml["scan_time"].as<float>(),
+        range_min_=config_yaml["range_min"].as<float>(), range_max_=config_yaml["range_max"].as<float>();
 bool use_inf_=true;
 double inf_epsilon_=1.0;
 
 void vpl16Callback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
+    //Eular angle to Rotation_matrix(RPY)
+    boost::shared_ptr<geometry_msgs::Vector3Stamped const> imu_msg;
+    float roll=0.0,pitch=0.0,yaw=0.0;
+    imu_msg = ros::topic::waitForMessage<geometry_msgs::Vector3Stamped>("/imu_euler_data", ros::Duration(0.05));
+    if(imu_msg!=NULL){
+        roll=imu_msg->vector.x;
+        pitch=imu_msg->vector.y;
+        //yaw=imu_msg->vector.z;
+    }
+    Eigen::Vector3f eulerAngle(roll,pitch,yaw);
+    Eigen::AngleAxisf rollAngle(Eigen::AngleAxisd(eulerAngle(0),Eigen::Vector3d::UnitX()));
+    Eigen::AngleAxisf pitchAngle(Eigen::AngleAxisd(eulerAngle(1),Eigen::Vector3d::UnitY()));
+    Eigen::AngleAxisf yawAngle(Eigen::AngleAxisd(eulerAngle(2),Eigen::Vector3d::UnitZ()));
+    Eigen::Matrix3f rotation_matrix;
+    rotation_matrix=yawAngle*pitchAngle*rollAngle;
+
+
     // build laserscan output
     sensor_msgs::LaserScan laser_msg;
     laser_msg.header = cloud_msg->header;
-
     laser_msg.angle_min = angle_min_;
     laser_msg.angle_max = angle_max_;
     laser_msg.angle_increment = angle_increment_;
@@ -50,23 +75,39 @@ void vpl16Callback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     else
     {laser_msg.ranges.assign(ranges_size, laser_msg.range_max + inf_epsilon_);}
 
+    std::vector<float> array={};
     // Iterate through pointcloud
     for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*cloud_msg, "x"), iter_y(*cloud_msg, "y"),
        iter_z(*cloud_msg, "z"); iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
     {
-        if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z))
+        //Imu_filter
+        Eigen::Vector3f old_point(*iter_x,*iter_y,*iter_z);
+        Eigen::Vector3f Imu_point=rotation_matrix*old_point;
+        float imu_x = *iter_x;
+        float imu_y = *iter_y;
+        float imu_z = *iter_z;
+        if(Imu_point.size()==3) {
+            imu_x = Imu_point[0];
+            imu_y = Imu_point[1];
+            imu_z = Imu_point[2];
+        }
+        array.push_back(imu_x);
+        array.push_back(imu_y);
+        array.push_back(imu_z);
+        //std::cout<<Imu_point.size()<<"  "<<imu_msg->vector<<std::endl;
+        if (std::isnan(imu_x) || std::isnan(imu_y) || std::isnan(imu_z))
         {continue;}
 
-        if (*iter_z > max_height_ || *iter_z < min_height_)
+        if (imu_z > max_height_ || imu_z < min_height_)
         {continue;}
 
-        double range = hypot(*iter_x, *iter_y);
+        double range = hypot(imu_x, imu_y);
         if (range < range_min_)
         {continue;}
         if (range > range_max_)
         {continue;}
 
-        double angle = atan2(*iter_y, *iter_x);
+        double angle = atan2(imu_y, imu_x);
         if (angle < laser_msg.angle_min || angle > laser_msg.angle_max)
         {continue;}
 
@@ -76,14 +117,44 @@ void vpl16Callback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         {laser_msg.ranges[index] = range;}
     }
     laser_pub.publish(laser_msg);
+    //std::cout<<array.size()<<"  ?  "<<cloud_msg->width<<std::endl;
+
+    //The code is pub new_cloud_msg(rotation by imu) to test the imu_msg;
+    sensor_msgs::PointCloud2 new_cld_msg;
+    new_cld_msg.header = cloud_msg->header;
+    new_cld_msg.width =  cloud_msg->width;
+    new_cld_msg.height = cloud_msg->height;
+    new_cld_msg.fields = cloud_msg->fields;
+    new_cld_msg.is_dense = cloud_msg->is_dense;
+    new_cld_msg.point_step = cloud_msg->point_step;
+    new_cld_msg.row_step = cloud_msg->row_step;
+    new_cld_msg.data.resize(new_cld_msg.row_step*new_cld_msg.height);
+    unsigned int offset = 0;
+    for (unsigned int i = 0; i < new_cld_msg.width; i++) {
+        memcpy(&new_cld_msg.data[offset + 0], &array[3*i+0], sizeof(array[0]));
+        memcpy(&new_cld_msg.data[offset + 4], &array[3*i+1], sizeof(array[0]));
+        memcpy(&new_cld_msg.data[offset + 8], &array[3*i+2], sizeof(array[0]));
+        offset += new_cld_msg.point_step;
+    }
+    new_cld_pub.publish(new_cld_msg);
 }
- 
+
 int main(int argc, char **argv)
 {
+    std::cout<< "Getting param from yaml_file:"<<yaml_path<<std::endl;
+    std::cout<< "min_height="<<min_height_<< std::endl;
+    std::cout<< "max_height="<<max_height_<< std::endl;
+    std::cout<< "angle_min="<<angle_min_<< std::endl;
+    std::cout<< "angle_max="<<angle_max_<< std::endl;
+    std::cout<< "angle_increment="<<angle_increment_<< std::endl;
+    std::cout<< "scan_time="<<scan_time_<< std::endl;
+    std::cout<< "range_min="<<range_min_<< std::endl;
+    std::cout<< "range_max="<<range_max_<< std::endl;
     ros::init(argc, argv, "pc2_to_laserscan_node");
     ros::NodeHandle node;
     ros::Subscriber sub = node.subscribe("vlp16", 2, vpl16Callback); //
     laser_pub = node.advertise<sensor_msgs::LaserScan>("scan",2);
+    new_cld_pub = node.advertise<sensor_msgs::PointCloud2>("/imu_vlp16",2);
     ros::spin();  //ros::spin()库是响应循环，消息到达时调用函数chatterCallback，CTRL+C结束循环
     return 0;
 }
