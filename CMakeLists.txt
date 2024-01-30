@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
   tf
   roslib
+  serial
 )
 
 ## System dependencies are found with CMake's conventions
@@ -169,6 +170,9 @@ include_directories(
 add_executable(sim_to_pc2 src/sim_to_pc2.cpp)
 add_executable(pc2_to_laserscan src/pc2_to_laserscan.cpp)
 add_executable(complementary_filter_node src/imu_filter/complementary_filter_node.cpp src/imu_filter/complementary_filter.cpp src/imu_filter/complementary_filter_ros.cpp)
+add_executable(odom_encoder_node src/odom_encoder.cpp)
+add_executable(cmd_vel_serial_node src/cmd_vel_serial.cpp)
+add_executable(receive_serial_node src/receive_serial.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -193,6 +197,17 @@ target_link_libraries(pc2_to_laserscan
 )
 target_link_libraries(complementary_filter_node
   # complementary_filter
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(odom_encoder_node
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
+target_link_libraries(cmd_vel_serial_node
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
+target_link_libraries(receive_serial_node
   ${catkin_LIBRARIES}
 )
 

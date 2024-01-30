@@ -3,6 +3,10 @@
   <!--  start c16 lidar -->
   <include file="$(find lslidar_driver)/launch/lslidar_c16.launch" />
 
+  <node pkg="patrol_robot" type="receive_serial_node" name="receive_serial_node" output="screen"/>
+  <node pkg="patrol_robot" type="odom_encoder_node" name="odom_encoder_node" output="screen"/>
+  <node pkg="patrol_robot" type="cmd_vel_serial_node" name="cmd_vel_serial_node" output="screen"/>
+
   <node pkg="patrol_robot" type="pc2_to_laserscan" name="pc2_to_laserscan" output="screen">
     <remap from="vlp16" to="lslidar_point_cloud"/>
   </node>

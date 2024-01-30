@@ -14,6 +14,9 @@ import yaml
 from patrol_robot.srv import *
 from std_msgs.msg import Float32MultiArray
 
+from threading import Thread
+import tf
+
 class Demo:
     def __init__(self):
         self.number = 1
@@ -57,6 +60,7 @@ class WebUI:
         self.ii_content_grid = ''
         self.compute_map_grid_content()
         self.ii_task_content = ''
+        self.ii_robot_pose_content = ''
         self.ii_mouse_arrow_content = ''
         self.task_show_on = 0
 
@@ -73,6 +77,7 @@ class WebUI:
         self.map_mouse_is_down = 0
 
         self.robot_pose_cur = self.param['robot_pose_init']
+
 
         with ui.row():
             ui.label('5G工业巡检机器人UI控制界面')
@@ -155,9 +160,9 @@ class WebUI:
         self.task_list_request = rospy.ServiceProxy('TaskList', TaskList)
         self.task_list_msg = Float32MultiArray()
 
-
-
-
+        self.tf_listener = tf.TransformListener()
+        self.thr = Thread(target=self.robot_pose_update)
+        self.thr.start()
 
         ui.run(title='Patrol Robot Web GUI', reload=False, show=False)
 
@@ -427,6 +432,17 @@ class WebUI:
         content = f'<line x1="{start_pt_pix[0]}" y1="{start_pt_pix[1]}" ' + f'x2="{end_pt_pix[0]}" y2="{end_pt_pix[1]}" ' + \
                   f'stroke="{color}" stroke-width="5" marker-end="url(#arrow)"/>'
         return content
+
+    def robot_pose_update(self):
+        rate = rospy.Rate(10.0)
+        while not rospy.is_shutdown():
+            # if self.tf_listener.canTransform("/base_link", "/map", rospy.Time().now()):
+            try:
+                (trans, rot) = self.tf_listener.lookupTransform('/base_link', '/map', rospy.Time(0)) # returns [t.x, t.y, t.z], [r.x, r.y, r.z, r.w]
+                rospy.logwarn('current robot pose = [%f, %f, %f]' % (trans[0], trans[1], rot[2]))
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+            rate.sleep()
 
 
 # if __name__ in {"__main__", "__mp_main__"}:
