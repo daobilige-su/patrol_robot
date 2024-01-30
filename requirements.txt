@@ -1,0 +1,6 @@
+#1 pandas
+pip3 install pandas
+
+#2 ros serial
+sudo apt-get install ros-noetic-serial
+

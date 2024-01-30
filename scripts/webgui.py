@@ -16,6 +16,7 @@ from std_msgs.msg import Float32MultiArray
 
 from threading import Thread
 import tf
+from tf import transformations
 
 class Demo:
     def __init__(self):
@@ -66,6 +67,7 @@ class WebUI:
 
         self.map_grid_on = 0
         self.map_axis_on = 0
+        self.map_robot_on = 0
 
         self.task_list = np.zeros((10,10)) # 0: stop, 1: move_base, 2: line_track, 3: take_photo, ... 9: do nothing
         self.task_list[:, 0] = np.ones((self.task_list.shape[0],))*9
@@ -78,6 +80,8 @@ class WebUI:
 
         self.robot_pose_cur = self.param['robot_pose_init']
 
+        # self.joystick_vx_max = 0.5
+        # self.joystick_w_max = 0.8
 
         with ui.row():
             ui.label('5G工业巡检机器人UI控制界面')
@@ -98,17 +102,24 @@ class WebUI:
                     self.map_axis_handler()
                     self.map_grid_sw = ui.switch('Grid On', value=True, on_change=self.map_grid_handler)
                     self.map_grid_handler()
+                    self.map_robot_sw = ui.switch('Robot On', value=True, on_change=self.map_robot_handler)
+                    self.map_robot_handler()
                     self.map_center_but = ui.button('Map Center', on_click=self.map_center_handler)
             with ui.card().classes('border').classes('w-[15rem] h-[52rem]'):
                 ui.button('Control: ')
                 control_chbox = ui.checkbox('Enable', value=True)
                 with ui.column().bind_visibility_from(control_chbox, 'value'):
                     ui.label('Joystick: [send cmd_vel]')
-                    ui.joystick(color='blue', size=50,
-                                # on_move=lambda e: coordinates.set_text(f"{e.x:.3f}, {e.y:.3f}"),
-                                on_move=lambda e: self.send_cmd_vel(float(e.y), float(-e.x)),
-                                on_end=lambda _: self.send_cmd_vel(0, 0))
-                    self.joystick_label = ui.label('[vx = 0, w = 0]')
+                    with ui.row().classes('items-center'):
+                        self.joystick_vx_max = ui.input('max vx', value=str(0.5)).classes('w-16')
+                        self.joystick_w_max = ui.input('max w', value=str(0.8)).classes('w-16')
+                    with ui.card().classes('w-[13rem] items-center'):
+                        ui.joystick(color='blue', size=70,
+                                    # on_move=lambda e: coordinates.set_text(f"{e.x:.3f}, {e.y:.3f}"),
+                                    on_move=lambda e: self.send_cmd_vel(float(e.y)*float(self.joystick_vx_max.value),
+                                                                        float(-e.x)*float(self.joystick_w_max.value)),
+                                    on_end=lambda _: self.send_cmd_vel(0, 0))
+                    self.joystick_label = ui.label('[vx = 0.000, w = 0.000]')
                     # ui.slider(min=1, max=3).bind_value(self.demo, 'number')
                     # ui.toggle({1: 'A', 2: 'B', 3: 'C'}).bind_value(self.demo, 'number')
                     # ui.number().bind_value(self.demo, 'number')
@@ -121,26 +132,27 @@ class WebUI:
                     self.aggrid_row = ui.row()
                     with self.aggrid_row:
                         self.aggrid = ui.aggrid.from_pandas(self.df, options={"rowSelection": "single"}).classes('w-[40rem]')
-                    with ui.row():
+                    with ui.row().classes('items-center'):
+                        ui.button('E-Stop', on_click=self.task_list_stop).classes('bg-red-5')
                         ui.button('Clear', on_click=self.task_list_clear)
                         ui.button('Send', on_click=self.task_list_send)
-                        ui.button('Stop', on_click=self.task_list_stop)
-                        ui.button('Add', on_click=self.task_list_add)
-                        self.task_list_show_sw = ui.switch('Show On Map', on_change=self.task_list_show)
-                    with ui.row():
+                        ui.button('Add Slots', on_click=self.task_list_add)
+                        self.task_list_show_sw = ui.switch('Show On Map', value=True, on_change=self.task_list_show)
+                        self.task_list_show()
+                    with ui.row().classes('items-center'):
                         ui.label('Stop:       ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_stop)
-                    with ui.row():
+                    with ui.row().classes('items-center'):
                         ui.label('Move Base:  ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_movebase)
                         ui.label('Param: ')
                         self.movebase_input_x = ui.input('X', value='0.0').classes('w-8')
                         self.movebase_input_y = ui.input('Y', value='0.0').classes('w-8')
                         self.movebase_input_theta = ui.input('Theta', value='0.0').classes('w-8')
-                    with ui.row():
+                    with ui.row().classes('items-center'):
                         ui.label('Line Track: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_line_track)
-                    with ui.row():
+                    with ui.row().classes('items-center'):
                         ui.label('Wait: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_wait)
                         self.wait_input_t = ui.input('t(s)', value='0.0').classes('w-8')
@@ -217,7 +229,7 @@ class WebUI:
         cmd_vel_msg = Twist()
         cmd_vel_msg.linear.x = vx
         cmd_vel_msg.angular.z = w
-        self.joystick_label.set_text(f"cmd_vel: [vx = {vx:.3f}, w = {w:.3f}]")
+        self.joystick_label.set_text(f"[vx = {vx:.3f}, w = {w:.3f}]")
         self.cmd_vel_pub.publish(cmd_vel_msg)
 
     def map_center_handler(self):
@@ -239,6 +251,13 @@ class WebUI:
             self.map_grid_on = 0
         self.map_ii_content_handler()
 
+    def map_robot_handler(self):
+        if self.map_robot_sw.value:
+            self.map_robot_on = 1
+        else:
+            self.map_robot_on = 0
+        self.map_ii_content_handler()
+
     def map_ii_content_handler(self):
         self.ii_fixed_content = self.ii_content_arrowdef
         if self.map_axis_on:
@@ -246,7 +265,7 @@ class WebUI:
         if self.map_grid_on:
             self.ii_fixed_content += self.ii_content_grid
 
-        self.ii_add_content = self.ii_mouse_arrow_content
+        self.ii_add_content = self.ii_mouse_arrow_content + self.ii_robot_pose_content
         if self.task_show_on:
             self.ii_add_content += self.ii_task_content
 
@@ -319,6 +338,18 @@ class WebUI:
         self.compute_task_content()
         self.map_ii_content_handler()
 
+        if self.param['server_connection']:
+            task_list = np.zeros((5, 10))
+            task_list_flatten = task_list.reshape((1, -1))[0]
+            task_list_flatten_list = task_list_flatten.tolist()
+
+            self.task_list_msg.data = task_list_flatten_list
+
+            rospy.loginfo('send TaskList request: ')
+            resp = self.task_list_request(self.task_list_msg)
+            rospy.loginfo('response is: %s' % (resp))
+            ui.notify('stop cmd sent')
+
     def task_list_send(self):
         if self.param['server_connection']:
             tasks_num = self.task_list.shape[0]
@@ -346,7 +377,7 @@ class WebUI:
             self.aggrid = ui.aggrid.from_pandas(self.df, options={"rowSelection": "single"}).classes('w-[40rem]')
         self.aggrid.update()
 
-    async def task_list_insert_stop(self):
+    async def task_list_insert_stop(self): # E-stop
         row = await self.aggrid.get_selected_row()
         if row:
             row_idx = row['index']-1
@@ -436,12 +467,28 @@ class WebUI:
     def robot_pose_update(self):
         rate = rospy.Rate(10.0)
         while not rospy.is_shutdown():
-            # if self.tf_listener.canTransform("/base_link", "/map", rospy.Time().now()):
-            try:
-                (trans, rot) = self.tf_listener.lookupTransform('/base_link', '/map', rospy.Time(0)) # returns [t.x, t.y, t.z], [r.x, r.y, r.z, r.w]
-                rospy.logwarn('current robot pose = [%f, %f, %f]' % (trans[0], trans[1], rot[2]))
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
+            self.ii_robot_pose_content = ''
+
+            if self.map_robot_on:
+                # if self.tf_listener.canTransform("/base_link", "/map", rospy.Time().now()):
+                try:
+                    (trans, rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0)) # returns [t.x, t.y, t.z], [r.x, r.y, r.z, r.w]
+
+                    # ai, aj, ak : Euler’s roll, pitch and yaw angles, axes : One of 24 axis sequences as string or encoded tuple
+                    # Quaternions ix+jy+kz+w are represented as [x, y, z, w].
+                    eul = transformations.euler_from_quaternion([0, 0, rot[2], rot[3]], 'rxyz')
+                    self.robot_pose_cur = [trans[0], trans[1], eul[2]]
+                    # rospy.logwarn('current robot pose = [%f, %f, %f]' % (self.robot_pose_cur[0], self.robot_pose_cur[1], self.robot_pose_cur[2])) # for debugging
+
+                    # update drawing
+                    x_axis_pose = self.robot_pose_cur
+                    y_axis_pose = [self.robot_pose_cur[0], self.robot_pose_cur[1], self.robot_pose_cur[2]+(np.pi/2)]
+                    self.ii_robot_pose_content = self.compute_arrow_content(x_axis_pose, 'red', self.param['map_arrow_len']/2) + \
+                                                 self.compute_arrow_content(y_axis_pose, 'green', self.param['map_arrow_len']/2)
+                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                    continue
+
+            self.map_ii_content_handler()
             rate.sleep()
 
 
