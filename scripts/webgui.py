@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 import math
 
 from nicegui import ui
@@ -31,6 +32,8 @@ class WebUI:
         params_filename = self.pkg_path+'param/'+'webgui_params.yaml'
         with open(params_filename, 'r') as file:
             self.param = yaml.safe_load(file)
+
+        self.task_list_file = self.pkg_path + 'traj/traj.csv'
 
         # load map
         map_yaml_filename = self.pkg_path+'map/'+self.param['map']
@@ -137,6 +140,8 @@ class WebUI:
                         ui.button('Clear', on_click=self.task_list_clear)
                         ui.button('Send', on_click=self.task_list_send)
                         ui.button('Add Slots', on_click=self.task_list_add)
+                        ui.button('Save', on_click=self.task_list_save)
+                        ui.button('Load', on_click=self.task_list_load)
                         self.task_list_show_sw = ui.switch('Show On Map', value=True, on_change=self.task_list_show)
                         self.task_list_show()
                     with ui.row().classes('items-center'):
@@ -376,6 +381,30 @@ class WebUI:
         with self.aggrid_row:
             self.aggrid = ui.aggrid.from_pandas(self.df, options={"rowSelection": "single"}).classes('w-[40rem]')
         self.aggrid.update()
+
+    def task_list_save(self):
+        np.savetxt(self.task_list_file, self.task_list, delimiter=",")
+        # notify user
+        ui.notify('task_list saved to: ' + self.task_list_file)
+
+
+    def task_list_load(self):
+        task_list_loaded = np.loadtxt(self.task_list_file, delimiter=',')
+        self.task_list = task_list_loaded.copy()
+
+        # update aggrid
+        self.df = pd.DataFrame(np.block([[(np.arange(self.task_list.shape[0]) + 1).reshape((-1, 1)), self.task_list]]),
+                               columns=['index', 'action', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'])
+        self.aggrid.delete()
+        with self.aggrid_row:
+            self.aggrid = ui.aggrid.from_pandas(self.df, options={"rowSelection": "single"}).classes('w-[40rem]')
+        self.aggrid.update()
+        # refresh task content on the map
+        self.compute_task_content()
+        self.map_ii_content_handler()
+
+        # notify user
+        ui.notify('task_list loaded from: ' + self.task_list_file)
 
     async def task_list_insert_stop(self): # E-stop
         row = await self.aggrid.get_selected_row()
