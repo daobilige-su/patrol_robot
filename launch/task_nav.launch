@@ -2,6 +2,7 @@
 <launch>
   <!-- <master auto="start"/>  -->
 <!--   <param name="use_sim_time" value="true" /> -->
+  <param name="simple_move_base_cfgfile" value="$(find patrol_robot)/param/simple_move_base_params.yaml" />
 
   <!--   map_server -->
   <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/mapv0.2.yaml"/>
@@ -30,6 +31,9 @@
     <param name="controller_patience" value="15" />
     <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS" />
   </node>
+
+  <!--   simple_move_base server -->
+  <node pkg="patrol_robot" type="simple_move_base_server.py" name="simple_move_base_server" output="screen" />
 
   <!--   webgui -->
   <node pkg="patrol_robot" type="webgui.py" name="webgui" output="screen" />

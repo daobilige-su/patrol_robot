@@ -13,7 +13,7 @@ from transform_tools import *
 
 import yaml
 
-cfgfile_path = rospy.get_param('cfgfile')
+cfgfile_path = rospy.get_param('simple_move_base_cfgfile')
 with open(cfgfile_path, 'r') as stream:
     cfg_data = yaml.safe_load(stream)
 
@@ -37,6 +37,7 @@ cmd_vel_x_min = cfg_data['keyparam']['cmd_vel_x_min']
 # cmd_vel_theta_min = 0.0
 cmd_vel_theta_min = cfg_data['keyparam']['cmd_vel_theta_min']
 
+
 class simple_move_base_action(object):
     # create messages that are used to publish feedback/result
     _feedback = move_base_msgs.msg.MoveBaseFeedback() # geometry_msgs/PoseStamped base_position
@@ -50,7 +51,6 @@ class simple_move_base_action(object):
 
         self.tf_listener = tf.TransformListener()
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-
 
     def execute_cb(self, goal):
         # helper variables

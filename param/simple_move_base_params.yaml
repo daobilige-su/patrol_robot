@@ -1,0 +1,14 @@
+keyparam:
+  cmd_vel_x_p: 0.75  # Proportional gain for translational velocity, proportion to goal and current positional difference
+  cmd_vel_theta_p: 0.75 # Proportional gain for rotational velocity, proportion to goal and current heading difference
+  cmd_vel_x_max: 0.5 # max translational velocity
+  cmd_vel_theta_max: 0.4 # max rotational velocity
+  cmd_vel_x_min: 0.04 # min translational velocity to start the robot moving forward
+  cmd_vel_theta_min: 0.1 # min rotational velocity to start the robot rotating
+
+move_base:
+  pose_diff_dist_thr: 0.1 # positional error tolerance for goal position
+  pose_diff_yaw_thr_deg: 5.0 # heading error tolerance for goal position
+  pose_diff_2d_line_yaw_thr_deg: 10.0 # # heading error tolerance when traveling to the goal position
+
+

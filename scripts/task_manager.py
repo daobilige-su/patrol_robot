@@ -35,9 +35,12 @@ class TaskManager:
 
         # move_base and track_line clients
         self.move_base_client = actionlib.SimpleActionClient('move_base', move_base_msgs.msg.MoveBaseAction)
+        self.simple_move_base_client = actionlib.SimpleActionClient('simple_move_base', move_base_msgs.msg.MoveBaseAction)
         self.line_track_client = actionlib.SimpleActionClient('line_track', patrol_robot.msg.line_trackAction)
         self.move_base_client.wait_for_server()
         rospy.loginfo('move_base_server connected.')
+        self.simple_move_base_client.wait_for_server()
+        rospy.loginfo('simple_move_base_server connected.')
         self.line_track_client.wait_for_server()
         rospy.loginfo('line_track_server connected.')
 
@@ -54,6 +57,7 @@ class TaskManager:
         self.task_list = task_list.copy()  # copy a new duplicate, do not assign the reference
 
         self.move_base_client.cancel_all_goals()
+        self.simple_move_base_client.cancel_all_goals()
         self.line_track_client.cancel_all_goals()
 
         # rospy.sleep(0.5)
@@ -79,12 +83,15 @@ class TaskManager:
     
             if task_list_cur[0]==0: # stop mode, [0, ...]
                 self.move_base_client.cancel_all_goals()
+                self.simple_move_base_client.cancel_all_goals()
                 self.line_track_client.cancel_all_goals()
                 # publish all zero velocity cmd
                 self.stop()
-            elif task_list_cur[0]==1: # move_base mode, [1, x, y, theta, ...]
+            elif task_list_cur[0]==1: # move_base mode, [1, x, y, theta, ck_pt ...]
                 goal_pose = task_list_cur[1:4].copy()
                 self.move_base_action(goal_pose)
+                if task_list_cur[4]==1:
+                    self.simple_move_base_action(goal_pose)
             elif task_list_cur[0]==2: # track_line mode, [2, dir, ...]
                 move_dir = task_list_cur[1].copy()
                 self.line_track_action(move_dir)
@@ -124,6 +131,33 @@ class TaskManager:
         # Waits for the server to finish performing the action.
         self.move_base_client.wait_for_result()
         rospy.loginfo("move_base_client: goal [%s, %s, %s] completed" % (pose[0], pose[1], pose[2]))
+
+    def simple_move_base_action(self, pose):
+        goal = move_base_msgs.msg.MoveBaseGoal()
+        goal.target_pose.header.frame_id = "map"
+        # goal.target_pose.pose.orientation.w = 1
+
+        # tf.transformations.quaternion_from_euler(ai, aj, ak, axes='sxyz')
+        # ai, aj, ak : Euler’s roll, pitch and yaw angles, axes : One of 24 axis sequences as string or encoded tuple
+        # Quaternions ix+jy+kz+w are represented as [x, y, z, w].
+        # sequence: e.g. 'sxyz'
+        # first character: rotations are applied to ‘s’tatic or ‘r’otating frame
+        # remaining characters: successive rotation axis ‘x’, ‘y’, or ‘z’
+        quat = transformations.quaternion_from_euler(0, 0, pose[2], 'rxyz')
+        # rospy.logerr(quat)
+
+        goal.target_pose.pose.position.x = pose[0]
+        goal.target_pose.pose.position.y = pose[1]
+        goal.target_pose.pose.orientation.z = quat[2]
+        goal.target_pose.pose.orientation.w = quat[3]
+
+        # Sends the goal to the action server.
+        rospy.loginfo("simple_move_base_client: sending goal [%s, %s, %s]" % (pose[0], pose[1], pose[2]))
+        self.simple_move_base_client.send_goal(goal)
+
+        # Waits for the server to finish performing the action.
+        self.simple_move_base_client.wait_for_result()
+        rospy.loginfo("simple_move_base_client: goal [%s, %s, %s] completed" % (pose[0], pose[1], pose[2]))
 
     # move_dir:
     # 1. move_base task: 0, stay still; 1, move forward; 2, move backward; 3, move left; 4, move right

@@ -67,6 +67,7 @@ class WebUI:
         self.ii_robot_pose_content = ''
         self.ii_mouse_arrow_content = ''
         self.task_show_on = 0
+        self.movebase_input_ck_pt = 0
 
         self.map_grid_on = 0
         self.map_axis_on = 0
@@ -154,6 +155,7 @@ class WebUI:
                         self.movebase_input_x = ui.input('X', value='0.0').classes('w-8')
                         self.movebase_input_y = ui.input('Y', value='0.0').classes('w-8')
                         self.movebase_input_theta = ui.input('Theta', value='0.0').classes('w-8')
+                        self.movebase_input_ck_pt = ui.switch('Check', value=False)
                     with ui.row().classes('items-center'):
                         ui.label('Line Track: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_line_track)
@@ -422,7 +424,8 @@ class WebUI:
         if row:
             row_idx = row['index']-1
             self.task_list[row_idx, :] = np.array([1, self.movebase_input_x.value, self.movebase_input_y.value,
-                                                   self.movebase_input_theta.value, 0, 0, 0, 0, 0, 0])
+                                                   self.movebase_input_theta.value, float(self.movebase_input_ck_pt.value), 0, 0, 0, 0, 0])
+            self.movebase_input_ck_pt.set_value(False)
             self.update_aggrid()
             self.compute_task_content()
             self.map_ii_content_handler()
@@ -470,9 +473,13 @@ class WebUI:
                     color = 'blue'
                 else:
                     color = 'red'
+                if task[4] >0:
+                    circle_color = 'green'
+                else:
+                    circle_color = 'blue'
                 xy_pix = self.transform_map_to_image(task[1:3])
                 self.ii_task_content += f'<circle cx="{xy_pix[0]}" cy="{xy_pix[1]}" r="{15 / self.param["map_vis_shrink_factor"]}"' + \
-                                        f'fill="none" stroke="{color}" stroke-width="4" />'
+                                        f'fill="none" stroke="{circle_color}" stroke-width="4" />'
                 self.ii_task_content += self.compute_arrow_content(task[1:4], 'yellow', self.param['map_arrow_len'])
 
                 pre_xy_pix = self.transform_map_to_image(pre_pose[0:2])
