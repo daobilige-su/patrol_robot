@@ -169,6 +169,7 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node map/patrol_robot_node.cpp)
 add_executable(sim_to_pc2 src/sim_to_pc2.cpp)
 add_executable(pc2_to_laserscan src/pc2_to_laserscan.cpp)
+add_executable(fws_pc2_to_laserscan src/fws_pc2_to_laserscan.cpp)
 add_executable(complementary_filter_node src/imu_filter/complementary_filter_node.cpp src/imu_filter/complementary_filter.cpp src/imu_filter/complementary_filter_ros.cpp)
 add_executable(odom_encoder_node src/odom_encoder.cpp)
 add_executable(cmd_vel_serial_node src/cmd_vel_serial.cpp)
@@ -192,6 +193,10 @@ target_link_libraries(sim_to_pc2
   ${catkin_LIBRARIES}
 )
 target_link_libraries(pc2_to_laserscan
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
+target_link_libraries(fws_pc2_to_laserscan
   ${catkin_LIBRARIES}
   ${YAML_CPP_LIBRARIES}
 )
