@@ -7,7 +7,6 @@ Panels:
         - /Global Options1
         - /Status1
         - /Grid1
-        - /LaserScan1
       Splitter Ratio: 0.5
     Tree Height: 847
   - Class: rviz/Selection
@@ -64,6 +63,8 @@ Visualization Manager:
           Value: true
         laser_link:
           Value: true
+        map:
+          Value: true
         odom:
           Value: true
       Marker Alpha: 1
@@ -73,10 +74,11 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
-          base_link:
-            laser_link:
-              {}
+        map:
+          odom:
+            base_link:
+              laser_link:
+                {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -119,7 +121,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -134,12 +136,22 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
+      Value: false
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Map
+      Topic: /map
+      Unreliable: false
+      Use Timestamp: false
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: odom
+    Fixed Frame: map
     Frame Rate: 30
   Name: root
   Tools:
@@ -162,26 +174,20 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 7.3941969871521
+      Angle: 0
+      Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Field of View: 0.7853981852531433
-      Focal Point:
-        X: -0.13849657773971558
-        Y: -0.366446316242218
-        Z: -0.014296714216470718
-      Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.35539865493774414
+      Scale: 129.4017791748047
       Target Frame: <Fixed Frame>
-      Yaw: 1.7454394102096558
+      X: 0.7355937361717224
+      Y: -1.4963575601577759
     Saved: ~
 Window Geometry:
   Displays:
@@ -200,4 +206,4 @@ Window Geometry:
     collapsed: false
   Width: 1839
   X: 2049
-  Y: 352
+  Y: 314
