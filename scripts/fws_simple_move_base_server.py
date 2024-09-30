@@ -13,29 +13,29 @@ from transform_tools import *
 
 import yaml
 
-cfgfile_path = rospy.get_param('simple_move_base_cfgfile')
+cfgfile_path = rospy.get_param('param_yaml_file')
 with open(cfgfile_path, 'r') as stream:
     cfg_data = yaml.safe_load(stream)
 
 # pose_diff_dist_thr = 0.1
-pose_diff_dist_thr = cfg_data['move_base']['pose_diff_dist_thr']
+pose_diff_dist_thr = cfg_data['simple_move_base']['pose_diff_dist_thr']
 # pose_diff_yaw_thr = 5.0*(math.pi/180.0)
-pose_diff_yaw_thr = cfg_data['move_base']['pose_diff_yaw_thr_deg']*(math.pi/180.0)
+pose_diff_yaw_thr = cfg_data['simple_move_base']['pose_diff_yaw_thr_deg']*(math.pi/180.0)
 # pose_diff_2d_line_yaw_thr = 10.0*(math.pi/180.0)
-pose_diff_2d_line_yaw_thr = cfg_data['move_base']['pose_diff_2d_line_yaw_thr_deg']*(math.pi/180.0)
+pose_diff_2d_line_yaw_thr = cfg_data['simple_move_base']['pose_diff_2d_line_yaw_thr_deg']*(math.pi/180.0)
 
 # cmd_vel_x_p = 0.75
-cmd_vel_x_p = cfg_data['keyparam']['cmd_vel_x_p']
+cmd_vel_x_p = cfg_data['simple_move_base']['cmd_vel_x_p']
 # cmd_vel_theta_p = 0.75
-cmd_vel_theta_p = cfg_data['keyparam']['cmd_vel_theta_p']
+cmd_vel_theta_p = cfg_data['simple_move_base']['cmd_vel_theta_p']
 # cmd_vel_x_max = 0.25
-cmd_vel_x_max = cfg_data['keyparam']['cmd_vel_x_max']
+cmd_vel_x_max = cfg_data['simple_move_base']['cmd_vel_x_max']
 # cmd_vel_theta_max = 0.25
-cmd_vel_theta_max = cfg_data['keyparam']['cmd_vel_theta_max']
+cmd_vel_theta_max = cfg_data['simple_move_base']['cmd_vel_theta_max']
 # cmd_vel_x_min = 0.0
-cmd_vel_x_min = cfg_data['keyparam']['cmd_vel_x_min']
+cmd_vel_x_min = cfg_data['simple_move_base']['cmd_vel_x_min']
 # cmd_vel_theta_min = 0.0
-cmd_vel_theta_min = cfg_data['keyparam']['cmd_vel_theta_min']
+cmd_vel_theta_min = cfg_data['simple_move_base']['cmd_vel_theta_min']
 
 
 class simple_move_base_action(object):

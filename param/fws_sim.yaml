@@ -12,7 +12,7 @@ laser:
   max_height: 1.0
   angle_min: -3.14
   angle_max: 3.14
-  angle_increment: 0.0045 ##1440
+  angle_increment: 0.0045 # 1440
   scan_time: 0.1
   range_min: 0.44
   range_max: 20.0
@@ -25,4 +25,16 @@ global_costmap:
   static_map: true
   inflation_radius: 1.5
   resolution: 0.01
+
+simple_move_base:
+    cmd_vel_x_p: 0.75  # Proportional gain for translational velocity, proportion to goal and current positional difference
+    cmd_vel_theta_p: 0.75 # Proportional gain for rotational velocity, proportion to goal and current heading difference
+    cmd_vel_x_max: 0.5 # max translational velocity
+    cmd_vel_theta_max: 0.4 # max rotational velocity
+    cmd_vel_x_min: 0.04 # min translational velocity to start the robot moving forward
+    cmd_vel_theta_min: 0.1 # min rotational velocity to start the robot rotating
+
+    pose_diff_dist_thr: 0.1 # positional error tolerance for goal position
+    pose_diff_yaw_thr_deg: 5.0 # heading error tolerance for goal position
+    pose_diff_2d_line_yaw_thr_deg: 10.0 # # heading error tolerance when traveling to the goal position
 
