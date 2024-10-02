@@ -13,30 +13,6 @@ from transform_tools import *
 
 import yaml
 
-cfgfile_path = rospy.get_param('param_yaml_file')
-with open(cfgfile_path, 'r') as stream:
-    cfg_data = yaml.safe_load(stream)
-
-# pose_diff_dist_thr = 0.1
-pose_diff_dist_thr = cfg_data['simple_move_base']['pose_diff_dist_thr']
-# pose_diff_yaw_thr = 5.0*(math.pi/180.0)
-pose_diff_yaw_thr = cfg_data['simple_move_base']['pose_diff_yaw_thr_deg']*(math.pi/180.0)
-# pose_diff_2d_line_yaw_thr = 10.0*(math.pi/180.0)
-pose_diff_2d_line_yaw_thr = cfg_data['simple_move_base']['pose_diff_2d_line_yaw_thr_deg']*(math.pi/180.0)
-
-# cmd_vel_x_p = 0.75
-cmd_vel_x_p = cfg_data['simple_move_base']['cmd_vel_x_p']
-# cmd_vel_theta_p = 0.75
-cmd_vel_theta_p = cfg_data['simple_move_base']['cmd_vel_theta_p']
-# cmd_vel_x_max = 0.25
-cmd_vel_x_max = cfg_data['simple_move_base']['cmd_vel_x_max']
-# cmd_vel_theta_max = 0.25
-cmd_vel_theta_max = cfg_data['simple_move_base']['cmd_vel_theta_max']
-# cmd_vel_x_min = 0.0
-cmd_vel_x_min = cfg_data['simple_move_base']['cmd_vel_x_min']
-# cmd_vel_theta_min = 0.0
-cmd_vel_theta_min = cfg_data['simple_move_base']['cmd_vel_theta_min']
-
 
 class simple_move_base_action(object):
     # create messages that are used to publish feedback/result
@@ -52,6 +28,33 @@ class simple_move_base_action(object):
         self.tf_listener = tf.TransformListener()
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
+        cfgfile_path = rospy.get_param('param_yaml_file')
+        with open(cfgfile_path, 'r') as stream:
+            self.param = yaml.safe_load(stream)
+
+        # pose_diff_dist_thr = 0.1
+        self.pose_diff_dist_thr = self.param['simple_move_base']['pose_diff_dist_thr']
+        # pose_diff_yaw_thr = 5.0*(math.pi/180.0)
+        self.pose_diff_yaw_thr = self.param['simple_move_base']['pose_diff_yaw_thr_deg'] * (math.pi / 180.0)
+        # pose_diff_2d_line_yaw_thr = 10.0*(math.pi/180.0)
+        self.pose_diff_2d_line_yaw_thr = self.param['simple_move_base']['pose_diff_2d_line_yaw_thr_deg'] * (math.pi / 180.0)
+
+        # cmd_vel_x_p = 0.75
+        self.cmd_vel_x_p = self.param['simple_move_base']['cmd_vel_x_p']
+        # cmd_vel_theta_p = 0.75
+        self.cmd_vel_theta_p = self.param['simple_move_base']['cmd_vel_theta_p']
+        # cmd_vel_x_max = 0.25
+        self.cmd_vel_x_max = self.param['simple_move_base']['cmd_vel_x_max']
+        # cmd_vel_theta_max = 0.25
+        self.cmd_vel_theta_max = self.param['simple_move_base']['cmd_vel_theta_max']
+        # cmd_vel_x_min = 0.0
+        self.cmd_vel_x_min = self.param['simple_move_base']['cmd_vel_x_min']
+        # cmd_vel_theta_min = 0.0
+        self.cmd_vel_theta_min = self.param['simple_move_base']['cmd_vel_theta_min']
+        self.ctl_freq = self.param['simple_move_base']['ctl_freq']
+
+        self.verbose = self.param['simple_move_base']['verbose']
+
     def execute_cb(self, goal):
         # helper variables
         r = rospy.Rate(5)
@@ -65,9 +68,16 @@ class simple_move_base_action(object):
         # publish info to the console for the user
         # rospy.loginfo('%s: Executing, creating fibonacci sequence of order %i with seeds %i, %i' % (
         # self._action_name, goal.order, self._feedback.sequence[0], self._feedback.sequence[1]))
-        rospy.loginfo('%s: Executing, obtained goal pose of (%f, %f, %f, %f, %f, %f, %f)' % (
-            self._action_name, goal.target_pose.pose.position.x, goal.target_pose.pose.position.y, goal.target_pose.pose.position.z,
-            goal.target_pose.pose.orientation.x, goal.target_pose.pose.orientation.y, goal.target_pose.pose.orientation.z, goal.target_pose.pose.orientation.w))
+        if self.verbose:
+            rospy.loginfo('%s: Executing, obtained goal pose of (%f, %f, %f, %f, %f, %f, %f)' % (
+                self._action_name, goal.target_pose.pose.position.x, goal.target_pose.pose.position.y, goal.target_pose.pose.position.z,
+                goal.target_pose.pose.orientation.x, goal.target_pose.pose.orientation.y, goal.target_pose.pose.orientation.z, goal.target_pose.pose.orientation.w))
+
+        end_mode = 0
+        if goal.target_pose.pose.position.z == 11.0:
+            end_mode = 1
+        elif goal.target_pose.pose.position.z == 12.0:
+            end_mode = 2
 
         pose_tar_trans = np.array([[goal.target_pose.pose.position.x], [goal.target_pose.pose.position.y], [goal.target_pose.pose.position.z]])
         pose_tar_quat = np.array([[goal.target_pose.pose.orientation.x], [goal.target_pose.pose.orientation.y], [goal.target_pose.pose.orientation.z], [goal.target_pose.pose.orientation.w]])
@@ -85,6 +95,7 @@ class simple_move_base_action(object):
         cmd_vel_msg = Twist()
 
         mode = 1
+        end_mode_1_succ_num = 0
         while success!=True:
             n = n + 1
 
@@ -109,13 +120,14 @@ class simple_move_base_action(object):
             pose_diff_M = np.linalg.lstsq(pose_cur_M,pose_tar_M, rcond=None)[0] # pose_cur_M\pose_tar_M: target pose in current pose's coordinate
             pose_diff_trans_ypr = transform_matrix_to_pose_trans_ypr(pose_diff_M)
 
-            rospy.loginfo('pose_diff_trans_ypr: (%f, %f, %f)' % (pose_diff_trans_ypr[0,0],pose_diff_trans_ypr[1,0],pose_diff_trans_ypr[3,0]))
+            if self.verbose:
+                rospy.loginfo('pose_diff_trans_ypr: (%f, %f, %f)' % (pose_diff_trans_ypr[0,0],pose_diff_trans_ypr[1,0],pose_diff_trans_ypr[3,0]))
 
             pose_diff_M_2d_line_yaw = np.arctan2(pose_diff_trans_ypr[1,0],pose_diff_trans_ypr[0,0])
             pose_diff_M_2d_line_dist = np.sqrt(pose_diff_trans_ypr[0,0]**2 + pose_diff_trans_ypr[1,0]**2)
 
             # compute error in x, y and theta
-            if abs(pose_diff_trans_ypr[3, 0]) > pose_diff_yaw_thr:
+            if abs(pose_diff_trans_ypr[3, 0]) > self.pose_diff_yaw_thr:
                 cmd_vel_x_diff = 0.0
                 cmd_vel_y_diff = 0.0
                 cmd_vel_theta_diff = np.sign(pose_diff_trans_ypr[3, 0]) * 0.35
@@ -124,25 +136,40 @@ class simple_move_base_action(object):
                 cmd_vel_y_diff = pose_diff_M_2d_line_dist * np.sin(pose_diff_M_2d_line_yaw)
                 cmd_vel_theta_diff = pose_diff_trans_ypr[3, 0]
 
-            if (abs(pose_diff_trans_ypr[3, 0]) < pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < pose_diff_dist_thr):
-                cmd_vel_x_diff = 0.0
-                cmd_vel_y_diff = 0.0
-                cmd_vel_theta_diff = 0.0
-                success = True
+            if end_mode==0:
+                if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
+                    cmd_vel_x_diff = 0.0
+                    cmd_vel_y_diff = 0.0
+                    cmd_vel_theta_diff = 0.0
+                    success = True
+            elif end_mode==1:
+                if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
+                    end_mode_1_succ_num = end_mode_1_succ_num+1
+                    if end_mode_1_succ_num == 20:
+                        cmd_vel_x_diff = 0.0
+                        cmd_vel_y_diff = 0.0
+                        cmd_vel_theta_diff = 0.0
+                        success = True
+                        end_mode_1_succ_num = 0
+                else:
+                    end_mode_1_succ_num = 0
+            elif end_mode==2:
+                if pose_diff_M_2d_line_dist < 3*self.pose_diff_dist_thr:
+                    success = True
 
-            cmd_vel_x = cmd_vel_x_diff * cmd_vel_x_p
-            cmd_vel_y = cmd_vel_y_diff * cmd_vel_x_p
-            cmd_vel_theta = cmd_vel_theta_diff * cmd_vel_theta_p
+            cmd_vel_x = cmd_vel_x_diff * self.cmd_vel_x_p
+            cmd_vel_y = cmd_vel_y_diff * self.cmd_vel_x_p
+            cmd_vel_theta = cmd_vel_theta_diff * self.cmd_vel_theta_p
 
             # max velocity constraints
-            if np.sqrt(cmd_vel_x**2 + cmd_vel_y**2) > cmd_vel_x_max:
-                cmd_vel_x = cmd_vel_x * (cmd_vel_x_max / np.sqrt(cmd_vel_x ** 2 + cmd_vel_y ** 2))
-                cmd_vel_y = cmd_vel_y * (cmd_vel_x_max / np.sqrt(cmd_vel_x ** 2 + cmd_vel_y ** 2))
+            if np.sqrt(cmd_vel_x**2 + cmd_vel_y**2) > self.cmd_vel_x_max:
+                cmd_vel_x = cmd_vel_x * (self.cmd_vel_x_max / np.sqrt(cmd_vel_x ** 2 + cmd_vel_y ** 2))
+                cmd_vel_y = cmd_vel_y * (self.cmd_vel_x_max / np.sqrt(cmd_vel_x ** 2 + cmd_vel_y ** 2))
 
-            if cmd_vel_theta>cmd_vel_theta_max:
-                cmd_vel_theta = cmd_vel_theta_max
-            elif cmd_vel_theta<(-1.0*cmd_vel_theta_max):
-                cmd_vel_theta = -1.0*cmd_vel_theta_max
+            if cmd_vel_theta>self.cmd_vel_theta_max:
+                cmd_vel_theta = self.cmd_vel_theta_max
+            elif cmd_vel_theta<(-1.0*self.cmd_vel_theta_max):
+                cmd_vel_theta = -1.0*self.cmd_vel_theta_max
 
             # min velocity constraints # TODO
             # if mode == 2:
