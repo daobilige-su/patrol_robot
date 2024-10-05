@@ -6,6 +6,7 @@ from scipy.spatial.transform import Rotation as R
 import numpy as np
 import math
 
+
 def transform_matrix_from_trans_ypr(trans_ypr):
     trans_ypr = trans_ypr.reshape((-1,1))
     # R.from_euler('ZYX', [y,p,r],degrees=true), 'ZYX' means extrinsic, 'zyx' means intrinsic, we use extrinsic,
@@ -55,6 +56,67 @@ def transform_matrix_to_pose_trans_ypr(M):
     trans_ypr = np.array([[trans[0,0]],[trans[1,0]],[trans[2,0]],[ypr[0]],[ypr[1]],[ypr[2]]])
 
     return trans_ypr
+
+
+def transform_trans_ypr_to_matrix(trans_ypr):
+    trans_ypr = trans_ypr.reshape((-1,1))
+    # R.from_euler('ZYX', [y,p,r],degrees=true), 'ZYX' means extrinsic, 'zyx' means intrinsic, we use extrinsic,
+    # it basically means World to Object or Object to World
+    r = R.from_euler('ZYX', [trans_ypr[3,0]*(180.0/math.pi),trans_ypr[4,0]*(180.0/math.pi),trans_ypr[5,0]*(180.0/math.pi)], degrees=True)
+    # r_M = r.as_dcm()
+    r_M = r.as_matrix()
+
+    M = np.zeros((4,4))
+    M[3, 3] = 1
+    M[0:3,0:3] = r_M
+    M[0:3,3:4] = np.array([[trans_ypr[0,0]],[trans_ypr[1,0]],[trans_ypr[2,0]]])
+
+    return M
+
+
+def transform_trans_quat_to_matrix(trans_quat):  # quat: (x, y, z, w)
+    trans_quat = trans_quat.reshape((-1,1))
+
+    trans = trans_quat[0:3, :]
+    quat = trans_quat[3:7, :]
+
+    r = R.from_quat([quat[0, 0], quat[1, 0], quat[2, 0], quat[3, 0]])
+    # r_M = r.as_dcm()
+    r_M = r.as_matrix()
+
+    M = np.zeros((4,4))
+    M[3, 3] = 1
+    M[0:3,0:3] = r_M
+    M[0:3,3:4] = np.array([[trans[0,0]],[trans[1,0]],[trans[2,0]]])
+
+    return M
+
+
+def transform_matrix_to_trans_ypr(M):
+    r_M = M[0:3,0:3]
+    trans = M[0:3,3:4]
+
+    # r = R.from_dcm(r_M)
+    r = R.from_matrix(r_M)
+
+    ypr = r.as_euler('ZYX')
+
+    trans_ypr = np.array([[trans[0,0]],[trans[1,0]],[trans[2,0]],[ypr[0]],[ypr[1]],[ypr[2]]])
+
+    return trans_ypr
+
+
+def transform_matrix_to_trans_quat(M):  # quat: (x, y, z, w)
+    r_M = M[0:3,0:3]
+    trans = M[0:3,3:4]
+
+    # r = R.from_dcm(r_M)
+    r = R.from_matrix(r_M)
+    quat = r.as_quat()
+
+    trans_quat = np.array([[trans[0,0]],[trans[1,0]],[trans[2,0]],[quat[0]],[quat[1]],[quat[2]],[quat[3]]])
+
+    return trans_quat
 
 
 def wrap_to_pi(rad):

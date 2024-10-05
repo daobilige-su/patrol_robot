@@ -163,7 +163,7 @@ class WebUI:
                         self.simple_movebase_input_x = ui.input('X', value='0.0').classes('w-8')
                         self.simple_movebase_input_y = ui.input('Y', value='0.0').classes('w-8')
                         self.simple_movebase_input_theta = ui.input('Theta', value='0.0').classes('w-8')
-                        self.simple_movebase_input_mode = ui.input('Mode', value='0').classes('w-8')
+                        self.simple_movebase_input_mode = ui.toggle({0: 'Nor', 11: 'Pre', 12: 'Pas'}, value=0).classes('w-8')
                     with ui.row().classes('items-center'):
                         ui.label('Line Track: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_line_track)
@@ -511,7 +511,29 @@ class WebUI:
                 pre_pose = [task[1], task[2], task[3]]
 
                 pre_task_is_movebase = 1
-            elif round(task[0]) == 2:  # line_track
+            elif round(task[0]) == 2:  # simple_move_base
+                if pre_task_is_movebase:
+                    color = 'green'
+                else:
+                    color = 'red'
+                if task[4] == 11:
+                    circle_color = 'green'
+                elif task[4] == 12:
+                    circle_color = 'red'
+                else:
+                    circle_color = 'blue'
+                xy_pix = self.transform_map_to_image(task[1:3])
+                self.ii_task_content += f'<circle cx="{xy_pix[0]}" cy="{xy_pix[1]}" r="{15 / self.param["web_gui"]["map_vis_shrink_factor"]}"' + \
+                                        f'fill="none" stroke="{circle_color}" stroke-width="4" />'
+                self.ii_task_content += self.compute_arrow_content(task[1:4], 'yellow', self.param["web_gui"]['map_arrow_len'])
+
+                pre_xy_pix = self.transform_map_to_image(pre_pose[0:2])
+                self.ii_task_content += f'<line x1="{pre_xy_pix[0]}" y1="{pre_xy_pix[1]}" x2="{xy_pix[0]}" y2="{xy_pix[1]}"' + \
+                                        f'stroke-dasharray="5,5" style="stroke:{color};stroke-width:2" />'
+                pre_pose = [task[1], task[2], task[3]]
+
+                pre_task_is_movebase = 1
+            elif round(task[0]) == 3:  # line_track
                 pre_task_is_movebase = 0
 
     def compute_arrow_content(self, pose, color, arrow_len):
@@ -556,5 +578,5 @@ class WebUI:
 # server = line_track_action()
 # rospy.spin()
 webui = WebUI()
-
+rospy.signal_shutdown('exiting')
 

@@ -14,6 +14,8 @@ from tf import transformations
 import tf
 from transform_tools import *
 
+from actionlib_msgs.msg import GoalID
+
 
 class PurePursuitPlannerFws:
     def __init__(self):
@@ -38,6 +40,10 @@ class PurePursuitPlannerFws:
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=2)
         # self.global_plan_sub = rospy.Subscriber("/global_plan", Path, self.update_global_plan)
         self.global_plan_sub = rospy.Subscriber("/move_base/NavfnROS/plan", Path, self.update_global_plan)
+
+        self.move_base_cancel_pub = rospy.Publisher("/move_base/cancel", GoalID, queue_size=1)
+
+        self.verbose = 0
 
     def update_global_plan(self, global_path_msg):
         pose_num = len(global_path_msg.poses)
@@ -67,7 +73,8 @@ class PurePursuitPlannerFws:
     def compute_plan(self):
         # skip if the global plan is None
         if self.global_plan is None:
-            rospy.loginfo('local_planner_pure_pursuit_fws_node: no global plan')
+            if self.verbose:
+                rospy.loginfo('local_planner_pure_pursuit_fws_node: no global plan')
             return
 
         # listen to the latest tf for base_link in map
@@ -85,14 +92,24 @@ class PurePursuitPlannerFws:
         path_pose_num = path.shape[0]
 
         # check if termination condition is satisfied
-        print(np.linalg.norm(rob_pose[0:2]-path[-1,0:2]))
-        print(np.unwrap(np.array([rob_pose[2]-path[-1,2]]))[0])
-        print(abs(np.unwrap(np.array([rob_pose[2]-path[-1,2]]))[0]-np.pi))
+        # print(np.linalg.norm(rob_pose[0:2]-path[-1,0:2]))
+        # print(np.unwrap(np.array([rob_pose[2]-path[-1,2]]))[0])
+        # print(abs(np.unwrap(np.array([rob_pose[2]-path[-1,2]]))[0]-np.pi))
         if np.linalg.norm(rob_pose[0:2]-path[-1,0:2])<self.nav_tol_dist and abs(self.wraptopi(rob_pose[2]-path[-1,2]))<self.nav_tol_heading:
             # send cmd_vel
             cmd_vel_msg = Twist()
             self.cmd_vel_pub.publish(cmd_vel_msg)
-            rospy.logwarn('local_planner_pure_pursuit_fws: goal pose accomplished')
+            if self.verbose:
+                rospy.logwarn('local_planner_pure_pursuit_fws: goal pose accomplished')
+
+            # cancel current move_base action
+            cancel_msg = GoalID()
+            self.move_base_cancel_pub.publish(cancel_msg)
+            rospy.logerr('move_base cancel msg sent')
+            if self.verbose:
+                rospy.logerr('move_base cancel msg sent')
+
+            self.global_plan = None
             return
 
         # nearest path pt

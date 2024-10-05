@@ -19,6 +19,11 @@ laser:
 
 
 global_costmap:
+  obstacle_range: 3
+  raytrace_range: 3
+  footprint: [ [ 0.25, 0.25 ], [ 0.5, 0.0 ], [ 0.25, -0.25 ], [ -0.25, -0.25 ], [ -0.25, 0.25 ]]
+  observation_sources: laser_scan_sensor #point_cloud_sensor
+  laser_scan_sensor: { sensor_frame: laser_link, data_type: LaserScan, topic: /scan, marking: true, clearing: true }
   global_frame: map
   robot_base_frame: base_link
   update_frequency: 5.0
@@ -26,10 +31,27 @@ global_costmap:
   inflation_radius: 1.5
   resolution: 0.01
 
+local_costmap:
+  obstacle_range: 3
+  raytrace_range: 3
+  footprint: [ [ 0.25, 0.25 ], [ 0.5, 0.0 ], [ 0.25, -0.25 ], [ -0.25, -0.25 ], [ -0.25, 0.25 ]]
+  observation_sources: laser_scan_sensor #point_cloud_sensor
+  laser_scan_sensor: { sensor_frame: laser_link, data_type: LaserScan, topic: /scan, marking: true, clearing: true }
+  global_frame: map
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  publish_frequency: 5.0
+  static_map: false
+  rolling_window: true
+  width: 5.0
+  height: 5.0
+  resolution: 0.01
+  inflation_radius: 1.0
+
 simple_move_base:
   verbose: 1
   cmd_vel_x_p: 0.75  # Proportional gain for translational velocity, proportion to goal and current positional difference
-  cmd_vel_theta_p: 0.75 # Proportional gain for rotational velocity, proportion to goal and current heading difference
+  cmd_vel_theta_p: 1.2 # Proportional gain for rotational velocity, proportion to goal and current heading difference
   cmd_vel_x_max: 0.5 # max translational velocity
   cmd_vel_theta_max: 0.4 # max rotational velocity
   cmd_vel_x_min: 0.04 # min translational velocity to start the robot moving forward

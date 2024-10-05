@@ -4,7 +4,8 @@
     <!--   <param name="use_sim_time" value="true" /> -->
 
     <!--     param file -->
-    <param name="param_yaml_file" value="$(find patrol_robot)/param/fws_sim.yaml" />
+    <arg name="param_yaml_file" value="$(find patrol_robot)/param/fws_sim.yaml" />
+    <param name="param_yaml_file" value="$(arg param_yaml_file)" />
 
     <!--   robot model -->
     <node pkg="patrol_robot" type="fws_model.py" name="fws_model"/>
@@ -36,18 +37,18 @@
     <!--       line_track server -->
     <node pkg="patrol_robot" type="line_track_server.py" name="line_track_server" output="screen" />
 
-    <!--       move_base -->
+    <!--   move_base -->
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
-    <rosparam file="$(find patrol_robot)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
-    <rosparam file="$(find patrol_robot)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
-    <rosparam file="$(find patrol_robot)/param/local_costmap_params.yaml" command="load" />
-    <rosparam file="$(find patrol_robot)/param/global_costmap_params.yaml" command="load" />
-    <rosparam file="$(find patrol_robot)/param/base_local_planner_params.yaml" command="load" />
-    <param name="planner_frequency" value="1" />
-    <param name="controller_frequency" value="5" />
-    <param name="controller_patience" value="15" />
-    <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS" />
+        <rosparam file="$(arg param_yaml_file)" command="load"/>
+        <param name="planner_frequency" value="1" />
+        <param name="controller_frequency" value="1" />
+        <param name="controller_patience" value="15" />
+        <param name="base_local_planner" value="regulated_pure_pursuit_controller/RegulatedPurePursuitController" />
+        <remap from="/cmd_vel" to="/cmd_vel_from_move_base"/>
     </node>
+
+    <!--   local_planner_pure_pursuit_fws -->
+    <node pkg="patrol_robot" type="local_planner_pure_pursuit_fws.py" name="local_planner_pure_pursuit_fws" output="screen" />
 
 <!--      --><!--   simple_move_base server -->
 <!--     <node pkg="patrol_robot" type="simple_move_base_server.py" name="simple_move_base_server" output="screen" /> -->

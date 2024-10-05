@@ -145,7 +145,7 @@ class simple_move_base_action(object):
             elif end_mode==1:
                 if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
                     end_mode_1_succ_num = end_mode_1_succ_num+1
-                    if end_mode_1_succ_num == 20:
+                    if end_mode_1_succ_num == 50:
                         cmd_vel_x_diff = 0.0
                         cmd_vel_y_diff = 0.0
                         cmd_vel_theta_diff = 0.0
