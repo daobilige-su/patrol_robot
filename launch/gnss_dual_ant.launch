@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="mowerbot" name="ahrs_driver" type="ahrs_driver" output="screen" >
+
+    <!-- serial port -->
+<!--     <param name="port"  value="/dev/wheeltec_FDI_IMU_GNSS"/> -->
+    <param name="port"  value="/dev/ttyUSB0"/>
+    <!-- baudrate -->
+    <param name="baud"  value="921600"/>
+
+    <!-- gnss dual ant 数据输出话题-->
+    <!-- MSG_GNSS_DUAL_ANT 0X78 数据包的数据 -->
+    <param name="gnss_dual_ant_topic_" value="/gnss_dual_ant/fix"/>
+
+  </node>
+
+</launch> 

@@ -175,6 +175,12 @@ add_executable(odom_encoder_node src/odom_encoder.cpp)
 add_executable(cmd_vel_serial_node src/cmd_vel_serial.cpp)
 add_executable(receive_serial_node src/receive_serial.cpp)
 
+## ahrs_driver
+add_executable(patrol_robot_ahrs_driver src/ahrs_driver.cpp)
+add_executable(patrol_robot_imu_tf src/imu_tf.cpp)
+## crc_table
+add_library(patrol_robot_crc_table src/crc_table.cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -215,6 +221,9 @@ target_link_libraries(cmd_vel_serial_node
 target_link_libraries(receive_serial_node
   ${catkin_LIBRARIES}
 )
+
+target_link_libraries(patrol_robot_ahrs_driver patrol_robot_crc_table ${catkin_LIBRARIES})# ${SERIAL_LIB}
+target_link_libraries(patrol_robot_imu_tf ${catkin_LIBRARIES})# ${SERIAL_LIB}
 
 #############
 ## Install ##

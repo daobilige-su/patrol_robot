@@ -50,11 +50,6 @@
     <!--   local_planner_pure_pursuit_fws -->
     <node pkg="patrol_robot" type="local_planner_pure_pursuit_fws.py" name="local_planner_pure_pursuit_fws" output="screen" />
 
-<!--      --><!--   simple_move_base server -->
-<!--     <node pkg="patrol_robot" type="simple_move_base_server.py" name="simple_move_base_server" output="screen" /> -->
-<!--      -->
-
-
     <!-- rviz -->
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/fws_sim.rviz"/>
 </launch> 
