@@ -47,9 +47,12 @@ class PurePursuitPlannerFws:
 
     def update_global_plan(self, global_path_msg):
         pose_num = len(global_path_msg.poses)
-        self.global_plan = np.zeros((pose_num, 6))
+        global_plan = np.zeros((pose_num, 6))
 
+        # rospy.loginfo('received new global plan')
+        # rospy.loginfo('pose_num = %d' % pose_num)
         for n in range(pose_num):
+            # print('%d / %d' % (n, pose_num))
             pose_trans_quat = np.array([global_path_msg.poses[n].pose.position.x,
                                         global_path_msg.poses[n].pose.position.y,
                                         global_path_msg.poses[n].pose.position.z,
@@ -62,13 +65,20 @@ class PurePursuitPlannerFws:
             quat = pose_trans_quat[3:7]
             ypr = quat2ypr(quat).reshape((-1,))
             pose_trans_ypr = np.block([trans, ypr])
-            self.global_plan[n, :] = pose_trans_ypr.copy()
+            global_plan[n, :] = pose_trans_ypr.copy()
+
+        self.global_plan = global_plan.copy()
 
     @staticmethod
     def wraptopi(x):
         pi = np.pi
         x = x - np.floor(x / (2 * pi)) * 2 * pi
-        return x[x >= pi] - 2 * pi
+        if np.isscalar(x):
+            if x>=pi:
+                x = x -2 * pi
+        else:
+            x[x >= pi] = x[x >= pi] - 2 * pi
+        return x
 
     def compute_plan(self):
         # skip if the global plan is None
@@ -95,6 +105,7 @@ class PurePursuitPlannerFws:
         # print(np.linalg.norm(rob_pose[0:2]-path[-1,0:2]))
         # print(np.unwrap(np.array([rob_pose[2]-path[-1,2]]))[0])
         # print(abs(np.unwrap(np.array([rob_pose[2]-path[-1,2]]))[0]-np.pi))
+        # print(path)
         if np.linalg.norm(rob_pose[0:2]-path[-1,0:2])<self.nav_tol_dist and abs(self.wraptopi(rob_pose[2]-path[-1,2]))<self.nav_tol_heading:
             # send cmd_vel
             cmd_vel_msg = Twist()
@@ -105,9 +116,9 @@ class PurePursuitPlannerFws:
             # cancel current move_base action
             cancel_msg = GoalID()
             self.move_base_cancel_pub.publish(cancel_msg)
-            rospy.logerr('move_base cancel msg sent')
+            rospy.logwarn('move_base cancel msg sent')
             if self.verbose:
-                rospy.logerr('move_base cancel msg sent')
+                rospy.logwarn('move_base cancel msg sent')
 
             self.global_plan = None
             return

@@ -20,7 +20,10 @@
     <include file="$(find patrol_robot)/launch/fws_handle_sim_vlp16.launch" />
 
     <!--      als -->
-    <include file="$(find als_ros)/launch/mcl_patrol_robot.launch" />
+<!--     <include file="$(find als_ros)/launch/mcl_patrol_robot.launch" /> -->
+
+    <!--     gps_loc -->
+    <node pkg="patrol_robot" type="gps_loc.py" name="gps_loc"/>
 
     <!--     fws_simple_move_base_server -->
     <node pkg="patrol_robot" type="fws_simple_move_base_server.py" name="fws_simple_move_base_server" output="screen" />
