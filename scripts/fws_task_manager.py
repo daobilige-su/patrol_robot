@@ -87,11 +87,11 @@ class TaskManager:
                 self.line_track_client.cancel_all_goals()
                 # publish all zero velocity cmd
                 self.stop()
-            elif task_list_cur[0]==1: # move_base mode, [1, x, y, theta, ck_pt ...]
+            elif task_list_cur[0]==1: # move_base mode, [1, x, y, theta, pre ...]
                 goal_pose = task_list_cur[1:4].copy()
                 self.move_base_action(goal_pose)
                 if task_list_cur[4]==1:
-                    self.simple_move_base_action(goal_pose, 0)
+                    self.simple_move_base_action(goal_pose, 11)
             elif task_list_cur[0]==2: # simple_move_base mode, [2, x, y, theta, end_mode ...]
                 goal_pose = task_list_cur[1:4].copy()
                 end_mode = task_list_cur[4]

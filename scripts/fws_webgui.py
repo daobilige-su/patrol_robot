@@ -155,7 +155,7 @@ class WebUI:
                         self.movebase_input_x = ui.input('X', value='0.0').classes('w-8')
                         self.movebase_input_y = ui.input('Y', value='0.0').classes('w-8')
                         self.movebase_input_theta = ui.input('Theta', value='0.0').classes('w-8')
-                        self.movebase_input_ck_pt = ui.switch('Check', value=False)
+                        self.movebase_input_ck_pt = ui.switch('Pre', value=False)
                     with ui.row().classes('items-center'):
                         ui.label('Simple Move Base:  ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_simple_movebase)
@@ -241,7 +241,6 @@ class WebUI:
                                       f'x2="{arrow_end_pt_pix[0]}" y2="{arrow_end_pt_pix[1]}" ' + \
                                       'stroke="yellow" stroke-width="5" marker-end="url(#arrow)"/>'
                 self.map_ii_content_handler()
-
 
     def send_cmd_vel(self, vx, w):
         cmd_vel_msg = Twist()

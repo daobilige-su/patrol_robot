@@ -136,13 +136,13 @@ class simple_move_base_action(object):
                 cmd_vel_y_diff = pose_diff_M_2d_line_dist * np.sin(pose_diff_M_2d_line_yaw)
                 cmd_vel_theta_diff = pose_diff_trans_ypr[3, 0]
 
-            if end_mode==0:
+            if end_mode==0:  # Normal
                 if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
                     cmd_vel_x_diff = 0.0
                     cmd_vel_y_diff = 0.0
                     cmd_vel_theta_diff = 0.0
                     success = True
-            elif end_mode==1:
+            elif end_mode==1:  # Precise
                 if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
                     end_mode_1_succ_num = end_mode_1_succ_num+1
                     if end_mode_1_succ_num == 50:
@@ -153,7 +153,7 @@ class simple_move_base_action(object):
                         end_mode_1_succ_num = 0
                 else:
                     end_mode_1_succ_num = 0
-            elif end_mode==2:
+            elif end_mode==2:  # Pass through
                 if pose_diff_M_2d_line_dist < 3*self.pose_diff_dist_thr:
                     success = True
 
