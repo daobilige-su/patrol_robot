@@ -20,10 +20,10 @@
     <include file="$(find patrol_robot)/launch/fws_handle_sim_vlp16.launch" />
 
     <!--      als -->
-<!--     <include file="$(find als_ros)/launch/mcl_patrol_robot.launch" /> -->
+    <include file="$(find als_ros)/launch/mcl_patrol_robot.launch" />
 
     <!--     gps_loc -->
-    <node pkg="patrol_robot" type="gps_loc.py" name="gps_loc"/>
+<!--     <node pkg="patrol_robot" type="gps_loc.py" name="gps_loc"/> -->
 
     <!--     fws_simple_move_base_server -->
     <node pkg="patrol_robot" type="fws_simple_move_base_server.py" name="fws_simple_move_base_server" output="screen" />
@@ -46,7 +46,7 @@
         <param name="planner_frequency" value="1" />
         <param name="controller_frequency" value="1" />
         <param name="controller_patience" value="15" />
-        <param name="base_local_planner" value="regulated_pure_pursuit_controller/RegulatedPurePursuitController" />
+        <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS" />
         <remap from="/cmd_vel" to="/cmd_vel_from_move_base"/>
     </node>
 
