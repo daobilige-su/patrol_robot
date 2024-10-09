@@ -30,7 +30,7 @@ class gps_localizer:
         self.fdi_gps_sub = rospy.Subscriber('/gnss_dual_ant/fix', GPSFix, self.fdi_gps_cb)
 
         # TaskList service to update self.task_list
-        self.gps_loc_on = (self.param['map']['loc_src']==1)
+        self.gps_loc_on = (self.param['loc']['loc_src']==1)
         rospy.logwarn('gps_loc status: ' + str(self.gps_loc_on))
         self.gps_loc_on_srv = rospy.Service('GpsLocOn', SetBool, self.update_gps_loc_on)
         rospy.loginfo('GpsLocOn service ready')

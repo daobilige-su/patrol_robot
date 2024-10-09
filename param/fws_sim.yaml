@@ -81,7 +81,7 @@ tf:
   tran_ypr_baselink_in_gps: [ 0.25, 0.0, 0.0, 0.0, 0.0, 0.0 ] # base_link coord in gps coord
   tran_ypr_laserlink_in_baselink: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-map:
+loc:
   env_map: fws_map_sim.yaml
   loc_src_map: fws_map_sim.yaml
   loc_src: 0 # 0: lidar, 1: gps

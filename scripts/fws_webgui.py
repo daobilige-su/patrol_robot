@@ -36,7 +36,7 @@ class WebUI:
         self.task_list_file = self.pkg_path + 'traj/traj.csv'
 
         # load map
-        map_yaml_filename = self.pkg_path+'map/'+self.param['map']['env_map']
+        map_yaml_filename = self.pkg_path+'map/'+self.param['loc']['env_map']
         with open(map_yaml_filename, 'r') as file:
             self.map_yaml = yaml.safe_load(file)
         map_pgm_filename = self.pkg_path+'map/'+self.map_yaml['image']
