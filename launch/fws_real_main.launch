@@ -11,7 +11,7 @@
     <node pkg="patrol_robot" type="fws_model.py" name="fws_model"/>
 
     <!--     tf_manager -->
-    <node pkg="patrol_robot" type="tf_manager.py" name="tf_manager"/>
+    <node pkg="patrol_robot" type="fws_tf_manager.py" name="fws_tf_manager"/>
 
     <!--   map_server -->
     <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/fws_map_sim.yaml"/>

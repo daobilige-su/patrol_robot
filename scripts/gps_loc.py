@@ -35,9 +35,9 @@ class gps_localizer:
         rospy.loginfo('GpsLocOn service ready')
 
         self.gps_src = self.param['gps']['src']  # 0: sim, 1: fdi
-        self.tran_ypr_map_in_enu = np.array(self.param['gps']['tran_ypr_map_in_enu'])
+        self.tran_ypr_map_in_enu = np.array(self.param['tf']['tran_ypr_map_in_enu'])
         self.T_map_in_enu = transform_trans_ypr_to_matrix(self.tran_ypr_map_in_enu)
-        self.tran_ypr_baselink_in_gps = np.array(self.param['gps']['tran_ypr_baselink_in_gps'])
+        self.tran_ypr_baselink_in_gps = np.array(self.param['tf']['tran_ypr_baselink_in_gps'])
         self.T_baselink_in_gps = transform_trans_ypr_to_matrix(self.tran_ypr_baselink_in_gps)
 
         self.tf_listener = tf.TransformListener()
@@ -45,10 +45,6 @@ class gps_localizer:
     def tf_broadcast(self, trans, quat, child_frame, parent_frame):
         self.br.sendTransform((trans[0], trans[1], trans[2]), (quat[0], quat[1], quat[2], quat[3]), rospy.Time.now(),
                               child_frame, parent_frame)
-
-    def send_tf(self):
-        self.tf_broadcast([0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0],
-                          'laser_link', 'base_link')
 
     def update_gps_loc_on(self, req):
         if req.data:

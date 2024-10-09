@@ -10,7 +10,7 @@
     <node pkg="patrol_robot" type="fws_model.py" name="fws_model"/>
 
     <!--     tf_manager -->
-    <node pkg="patrol_robot" type="tf_manager.py" name="tf_manager"/>
+    <node pkg="patrol_robot" type="fws_tf_manager.py" name="fws_tf_manager"/>
 
     <!--   if sim, process vlp16 in sim -->
     <include file="$(find patrol_robot)/launch/fws_handle_sim_vlp16.launch" />

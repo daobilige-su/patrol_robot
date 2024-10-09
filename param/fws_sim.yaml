@@ -75,6 +75,9 @@ gps:
   src: 0 # 0: sim, 1: fdi
   #ref_lla: [40.0, 117.0, 0.0]
   ref_lla: [40.0, 117.0, 0.0]
-  tran_ypr_map_in_enu: [0, 0, 0, 0, 0, 0] # map coord in enu coord
-  tran_ypr_baselink_in_gps: [0.25, 0, 0, 0, 0, 0] # base_link coord in gps coord
+
+tf:
+  tran_ypr_map_in_enu: [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ] # map coord in enu coord
+  tran_ypr_baselink_in_gps: [ 0.25, 0.0, 0.0, 0.0, 0.0, 0.0 ] # base_link coord in gps coord
+  tran_ypr_laserlink_in_baselink: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
