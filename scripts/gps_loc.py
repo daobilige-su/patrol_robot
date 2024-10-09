@@ -10,6 +10,8 @@ from geo_coord_transform import *
 from transform_tools import *
 import yaml
 
+from std_srvs.srv import SetBool, SetBoolResponse
+
 class gps_localizer:
     def __init__(self):
         # locate ros pkg
@@ -27,6 +29,11 @@ class gps_localizer:
         self.sim_gps_sub = rospy.Subscriber('dgps_floatarray', Float64MultiArray, self.sim_gps_cb)
         self.fdi_gps_sub = rospy.Subscriber('/gnss_dual_ant/fix', GPSFix, self.fdi_gps_cb)
 
+        # TaskList service to update self.task_list
+        self.gps_loc_on = self.param['gps']['gps_loc_on']
+        self.gps_loc_on_srv = rospy.Service('GpsLocOn', SetBool, self.update_gps_loc_on)
+        rospy.loginfo('GpsLocOn service ready')
+
         self.gps_src = self.param['gps']['src']  # 0: sim, 1: fdi
         self.tran_ypr_map_in_enu = np.array(self.param['gps']['tran_ypr_map_in_enu'])
         self.T_map_in_enu = transform_trans_ypr_to_matrix(self.tran_ypr_map_in_enu)
@@ -42,6 +49,13 @@ class gps_localizer:
     def send_tf(self):
         self.tf_broadcast([0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0],
                           'laser_link', 'base_link')
+
+    def update_gps_loc_on(self, req):
+        if req.data:
+            self.gps_loc_on = 1
+        else:
+            self.gps_loc_on = 0
+        return SetBoolResponse(True)
 
     def sim_gps_cb(self, msg):
         if self.gps_src == 0:
@@ -96,10 +110,42 @@ class gps_localizer:
             if theta > np.pi:
                 theta = theta - 2.0*np.pi
 
-            enu = geodetic_to_enu(lla[0], lla[1], lla[2], self.lla_ori[0], self.lla_ori[1], self.lla_ori[2])
-            quat = ypr2quat(np.array([theta, 0, 0]))
+            # (1) get base_link in map
+            #  x, y, z coords for East, North, Up frame in map
+            trans_gps_in_enu = geodetic_to_enu(lla[0], lla[1], lla[2], self.lla_ori[0], self.lla_ori[1], self.lla_ori[2])
+            # Quaternion for East, North, Up frame in map
+            ypr_gps_in_enu = np.array([theta, 0, 0])
 
-            self.tf_broadcast(enu, quat, 'base_link', 'map')
+            T_gps_in_enu = transform_trans_ypr_to_matrix(np.array([trans_gps_in_enu[0], trans_gps_in_enu[1], 0.0,
+                                                                   ypr_gps_in_enu[0], ypr_gps_in_enu[1],
+                                                                   ypr_gps_in_enu[2]]))
+
+            T_baselink_in_enu = T_gps_in_enu @ self.T_baselink_in_gps
+
+            # T_baselink_in_map = T_map_in_enu\T_baselink_in_enu: base_link in map's coordinate (left divide)
+            T_baselink_in_map = np.linalg.lstsq(self.T_map_in_enu, T_baselink_in_enu, rcond=None)[0]
+
+            # (2) get base_link in odom
+            try:
+                (trans, rot) = self.tf_listener.lookupTransform('/odom', '/base_link', rospy.Time(0))
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                return
+            trans_baselink_in_odom = np.array([[trans[0]], [trans[1]], [trans[2]]])
+            quat_baselink_in_odom = np.array([[rot[0]], [rot[1]], [rot[2]], [rot[3]]])  # rot (x, y, z, w)
+
+            T_baselink_in_odom = transform_trans_quat_to_matrix(
+                np.array([trans_baselink_in_odom[0, 0], trans_baselink_in_odom[1, 0], trans_baselink_in_odom[2, 0],
+                          quat_baselink_in_odom[0, 0], quat_baselink_in_odom[1, 0], quat_baselink_in_odom[2, 0],
+                          quat_baselink_in_odom[3, 0]]))
+
+            # (3) get odom in map
+            # T_odom_in_map = T_baselink_in_map / T_baselink_in_odom (right divide)
+            T_odom_in_map = np.linalg.lstsq(T_baselink_in_odom.T, T_baselink_in_map.T, rcond=None)[0].T
+            trans_quat_odom_in_map = transform_matrix_to_trans_quat(T_odom_in_map)
+            trans_odom_in_map = trans_quat_odom_in_map[0:3, 0]
+            quat_odom_in_map = trans_quat_odom_in_map[3:, 0]
+
+            self.tf_broadcast(trans_odom_in_map, quat_odom_in_map, 'odom', 'map')
 
 
 def main(args):

@@ -71,6 +71,7 @@ web_gui:
   server_connection: 1
 
 gps:
+  gps_loc_on: 0
   src: 0 # 0: sim, 1: fdi
   #ref_lla: [40.0, 117.0, 0.0]
   ref_lla: [40.0, 117.0, 0.0]
