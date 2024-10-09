@@ -63,7 +63,7 @@ simple_move_base:
   pose_diff_2d_line_yaw_thr_deg: 10.0 # # heading error tolerance when traveling to the goal position
 
 web_gui:
-  map: fws_map_sim.yaml
+  # map: fws_map_sim.yaml
   grid_size: 1.0
   map_arrow_len: 0.5
   map_vis_shrink_factor: 2.0
@@ -71,13 +71,18 @@ web_gui:
   server_connection: 1
 
 gps:
-  gps_loc_on: 0
-  src: 0 # 0: sim, 1: fdi
-  #ref_lla: [40.0, 117.0, 0.0]
+  # gps_loc_on: 0
+  # src: 0 # 0: sim, 1: fdi
+  # ref_lla: [40.0, 117.0, 0.0]
   ref_lla: [40.0, 117.0, 0.0]
 
 tf:
   tran_ypr_map_in_enu: [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ] # map coord in enu coord
   tran_ypr_baselink_in_gps: [ 0.25, 0.0, 0.0, 0.0, 0.0, 0.0 ] # base_link coord in gps coord
   tran_ypr_laserlink_in_baselink: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+map:
+  env_map: fws_map_sim.yaml
+  loc_src_map: fws_map_sim.yaml
+  loc_src: 0 # 0: lidar, 1: gps
 

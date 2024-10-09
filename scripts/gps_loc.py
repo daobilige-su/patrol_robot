@@ -30,11 +30,12 @@ class gps_localizer:
         self.fdi_gps_sub = rospy.Subscriber('/gnss_dual_ant/fix', GPSFix, self.fdi_gps_cb)
 
         # TaskList service to update self.task_list
-        self.gps_loc_on = self.param['gps']['gps_loc_on']
+        self.gps_loc_on = (self.param['map']['loc_src']==1)
+        rospy.logwarn('gps_loc status: ' + str(self.gps_loc_on))
         self.gps_loc_on_srv = rospy.Service('GpsLocOn', SetBool, self.update_gps_loc_on)
         rospy.loginfo('GpsLocOn service ready')
 
-        self.gps_src = self.param['gps']['src']  # 0: sim, 1: fdi
+        # self.gps_src = self.param['gps']['src']  # 0: sim, 1: fdi
         self.tran_ypr_map_in_enu = np.array(self.param['tf']['tran_ypr_map_in_enu'])
         self.T_map_in_enu = transform_trans_ypr_to_matrix(self.tran_ypr_map_in_enu)
         self.tran_ypr_baselink_in_gps = np.array(self.param['tf']['tran_ypr_baselink_in_gps'])
@@ -51,10 +52,11 @@ class gps_localizer:
             self.gps_loc_on = 1
         else:
             self.gps_loc_on = 0
+        rospy.logwarn('gps_loc status is updated to: ' + str(self.gps_loc_on))
         return SetBoolResponse(True)
 
     def sim_gps_cb(self, msg):
-        if self.gps_src == 0:
+        if self.gps_loc_on:
             data = np.array(msg.data)
             lla = data[0:3]
             track = data[3]
@@ -98,7 +100,7 @@ class gps_localizer:
             self.tf_broadcast(trans_odom_in_map, quat_odom_in_map, 'odom', 'map')
 
     def fdi_gps_cb(self, msg):
-        if self.gps_src == 1:
+        if self.gps_loc_on:
             # lla = np.array([np.deg2rad(msg.latitude), np.deg2rad(msg.longitude), msg.altitude])
             lla = np.array([msg.latitude, msg.longitude, msg.altitude])
             track = -np.deg2rad(msg.track) # the direction of gps angle is opposite of Z axis up, maybe it is NED, not ENU
