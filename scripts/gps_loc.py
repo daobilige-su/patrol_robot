@@ -33,7 +33,7 @@ class gps_localizer:
         self.gps_loc_on = (self.param['loc']['loc_src']==1)
         rospy.logwarn('gps_loc status: ' + str(self.gps_loc_on))
         self.gps_loc_on_srv = rospy.Service('GpsLocOn', SetBool, self.update_gps_loc_on)
-        rospy.loginfo('GpsLocOn service ready')
+        rospy.logwarn('GpsLocOn service ready')
 
         # self.gps_src = self.param['gps']['src']  # 0: sim, 1: fdi
         self.tran_ypr_map_in_enu = np.array(self.param['tf']['tran_ypr_map_in_enu'])
@@ -53,7 +53,10 @@ class gps_localizer:
         else:
             self.gps_loc_on = 0
         rospy.logwarn('gps_loc status is updated to: ' + str(self.gps_loc_on))
-        return SetBoolResponse(True)
+        res = SetBoolResponse()
+        res.success = True
+        res.message = ''
+        return res
 
     def sim_gps_cb(self, msg):
         if self.gps_loc_on:

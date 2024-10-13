@@ -8,7 +8,7 @@ import numpy as np
 from transform_tools import *
 import rospkg
 from PIL import Image
-
+from std_srvs.srv import SetBool
 
 class LocManager:
     def __init__(self):
@@ -22,11 +22,15 @@ class LocManager:
 
         self.manager_rate = rospy.Rate(10)
 
+        # servers
+        rospy.wait_for_service('GpsLocOn')
+        self.gps_loc_req = rospy.ServiceProxy('GpsLocOn', SetBool)
+
         # set map params
         self.env_map_yaml_file = self.param['loc']['env_map']
         self.loc_src_map_yaml_file = self.param['loc']['loc_src_map']
 
-        with open(self.env_map_yaml_file, 'r') as file:
+        with open(self.pkg_path+'map/'+self.env_map_yaml_file, 'r') as file:
             self.env_map_yaml = yaml.safe_load(file)
         env_map_pgm_filename = self.pkg_path+'map/'+self.env_map_yaml['image']
         self.env_map_pgm = Image.open(env_map_pgm_filename)
@@ -46,17 +50,21 @@ class LocManager:
         #                          1]]  # origin: The 2-D pose of the lower-left pixel in the map, as (x, y, yaw)
         # self.env_map_ct_px = [self.env_map_ct_m[0] / self.env_map_res, self.env_map_ct_m[1] / self.env_map_res]
 
+    def update_map_and_loc(self):
+        res = self.gps_loc_req(True)
+        rospy.loginfo('GPS Loc On request sent.')
+        rospy.loginfo('Response is:')
+        rospy.loginfo(res)
 
+        rospy.sleep(5)
 
+        res = self.gps_loc_req(False)
+        rospy.loginfo('GPS Loc Off request sent.')
+        rospy.loginfo('Response is:')
+        rospy.loginfo(res)
 
-
-        trans_ypr_laserlink_in_baselink = np.array(self.param['tf']['tran_ypr_laserlink_in_baselink'])
-        quat_laserlink_in_baselink = ypr2quat(trans_ypr_laserlink_in_baselink[3:])
-        self.trans_quat_laserlink_in_baselink = np.array(
-            [trans_ypr_laserlink_in_baselink[0], trans_ypr_laserlink_in_baselink[1], trans_ypr_laserlink_in_baselink[2],
-             quat_laserlink_in_baselink[0, 0], quat_laserlink_in_baselink[1, 0], quat_laserlink_in_baselink[2, 0], quat_laserlink_in_baselink[3, 0]])
-
-
+        rospy.sleep(5)
+        pass
 
 
 def main(args):
@@ -64,7 +72,7 @@ def main(args):
     loc_manager = LocManager()
     try:
         while not rospy.is_shutdown():
-            # loc_manager.send_tf()
+            loc_manager.update_map_and_loc()
             loc_manager.manager_rate.sleep()
     except KeyboardInterrupt:
         print("Shutting down")

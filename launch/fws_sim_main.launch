@@ -25,6 +25,9 @@
     <!--     gps_loc -->
     <node pkg="patrol_robot" type="gps_loc.py" name="gps_loc"/>
 
+    <!--     fws_loc_manager -->
+<!--     <node pkg="patrol_robot" type="fws_loc_manager.py" name="fws_loc_manager"/> -->
+
     <!--     fws_simple_move_base_server -->
     <node pkg="patrol_robot" type="fws_simple_move_base_server.py" name="fws_simple_move_base_server" output="screen" />
 
