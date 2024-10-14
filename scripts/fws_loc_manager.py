@@ -25,6 +25,10 @@ class LocManager:
         # servers
         rospy.wait_for_service('GpsLocOn')
         self.gps_loc_req = rospy.ServiceProxy('GpsLocOn', SetBool)
+        rospy.logwarn('GpsLocOn service connected.')
+        rospy.wait_for_service('AlsLocOn')
+        self.als_loc_req = rospy.ServiceProxy('AlsLocOn', SetBool)
+        rospy.logwarn('AlsLocOn service connected.')
 
         # set map params
         self.env_map_yaml_file = self.param['loc']['env_map']
@@ -55,11 +59,19 @@ class LocManager:
         rospy.loginfo('GPS Loc On request sent.')
         rospy.loginfo('Response is:')
         rospy.loginfo(res)
+        res = self.als_loc_req(False)
+        rospy.loginfo('ALS Loc Off request sent.')
+        rospy.loginfo('Response is:')
+        rospy.loginfo(res)
 
         rospy.sleep(5)
 
         res = self.gps_loc_req(False)
         rospy.loginfo('GPS Loc Off request sent.')
+        rospy.loginfo('Response is:')
+        rospy.loginfo(res)
+        res = self.als_loc_req(True)
+        rospy.loginfo('ALS Loc Off request sent.')
         rospy.loginfo('Response is:')
         rospy.loginfo(res)
 

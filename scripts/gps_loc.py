@@ -50,12 +50,16 @@ class gps_localizer:
     def update_gps_loc_on(self, req):
         if req.data:
             self.gps_loc_on = 1
+            rospy.logwarn('gps_loc status is updated to: True')
+            res = SetBoolResponse()
+            res.success = True
+            res.message = 'gps_loc status is updated to: True'
         else:
             self.gps_loc_on = 0
-        rospy.logwarn('gps_loc status is updated to: ' + str(self.gps_loc_on))
-        res = SetBoolResponse()
-        res.success = True
-        res.message = ''
+            rospy.logwarn('gps_loc status is updated to: False')
+            res = SetBoolResponse()
+            res.success = False
+            res.message = 'gps_loc status is updated to: False'
         return res
 
     def sim_gps_cb(self, msg):
