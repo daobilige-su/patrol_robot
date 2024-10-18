@@ -40,9 +40,15 @@ class LocManager:
             self.env_map_yaml = yaml.safe_load(file)
         env_map_pgm_filename = self.pkg_path+'map/'+self.env_map_yaml['image']
         self.env_map_img = Image.open(env_map_pgm_filename)
-        self.env_map_size = self.env_map_img.size # w,h
+        env_map_np = np.flipud(np.asarray(self.env_map_img).astype(float))
+        env_map_np_p = (255.0 - env_map_np) / 255.0
+        env_map_msg_data_np = -1 * np.ones(env_map_np.shape, dtype=np.int8)
+        env_map_msg_data_np[env_map_np_p > self.env_map_yaml['occupied_thresh']] = 100
+        env_map_msg_data_np[env_map_np_p < self.env_map_yaml['free_thresh']] = 0
+        self.env_map_np = env_map_msg_data_np.copy()
+        self.env_map_size = self.env_map_np.size # w,h
         self.env_map_res = self.env_map_yaml['resolution']
-        self.env_map_ct_m = [-self.env_map_yaml['origin'][0], self.env_map_size[1]*self.env_map_res+self.env_map_yaml['origin'][1]] # origin: The 2-D pose of the lower-left pixel in the map, as (x, y, yaw)
+        self.env_map_ct_m = [-self.env_map_yaml['origin'][0], -self.env_map_yaml['origin'][1]] # origin: The 2-D pose of the lower-left pixel in the map, as (x, y, yaw)
         self.env_map_ct_px = [self.env_map_ct_m[0]/self.env_map_res, self.env_map_ct_m[1]/self.env_map_res]
 
         # with open(self.env_map_yaml_file, 'r') as file:
@@ -97,9 +103,8 @@ class LocManager:
         pose.orientation.w = 1.0
         env_map_msg.info.origin = pose
 
-        env_map_np = np.flipud(np.asarray(self.env_map_img).astype(float))
-        env_map_np_p = (255.0-env_map_np)/255.0
-        env_map_msg_data_np = -1*np.ones(env_map_np.shape, dtype=np.int8)
+        env_map_np_p = (255.0-self.env_map_np)/255.0
+        env_map_msg_data_np = -1*np.ones(self.env_map_np.shape, dtype=np.int8)
         env_map_msg_data_np[env_map_np_p > self.env_map_yaml['occupied_thresh']] = 100
         env_map_msg_data_np[env_map_np_p < self.env_map_yaml['free_thresh']] = 0
         env_map_msg.data = env_map_msg_data_np.reshape((-1,)).tolist()
