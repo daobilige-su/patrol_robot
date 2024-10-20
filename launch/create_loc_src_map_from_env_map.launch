@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!--     param file -->
+    <param name="env_map_yaml_file" value="fws_map_sim.yaml" />
+
+    <!--   robot model -->
+    <node pkg="patrol_robot" type="create_loc_src_map_from_env_map.py" name="create_loc_src_map_from_env_map"/>
+
+    <!-- rviz -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/create_loc_src_map.rviz"/>
+</launch> 
+

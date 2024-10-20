@@ -83,6 +83,6 @@ tf:
 
 loc:
   env_map: fws_map_sim.yaml
-  loc_src_map: fws_map_sim.yaml
+  loc_src_map: fws_map_sim_loc_src_map.yaml
   loc_src: 0 # 0: lidar, 1: gps
 
