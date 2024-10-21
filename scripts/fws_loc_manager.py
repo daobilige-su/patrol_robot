@@ -11,6 +11,7 @@ from PIL import Image
 from std_srvs.srv import SetBool
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose
+import copy
 
 
 class LocManager:
@@ -43,16 +44,35 @@ class LocManager:
         # map pub
         self.env_map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
 
-    def update_map_and_loc(self):
-        # test loc sensor switching
-        self.set_gps_on()
-        rospy.sleep(5)
-        self.set_als_on()
-        rospy.sleep(5)
+        # tf listener
+        self.tf_listener = tf.TransformListener()
 
-        # test env_map publishing
-        env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res, [0, 0, 0])
-        self.env_map_pub.publish(env_map_msg)
+    def update_map_and_loc(self):
+        # # test loc sensor switching
+        # self.set_gps_on()
+        # rospy.sleep(5)
+        # self.set_als_on()
+        # rospy.sleep(5)
+        #
+        # # test env_map publishing
+        # env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res, [0, 0, 0])
+        # self.env_map_pub.publish(env_map_msg)
+
+        # based on localization source map, determine which loc method (lidar or gps) will be used.
+        loc_src_map = copy.copy(self.loc_src_map)
+        env_map = copy.copy(self.env_map)
+
+        # listen to the latest tf for base_link in map
+        try:
+            # trans: [x, y, z], rot: [qx, qy, qz, qw]
+            (trans, rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0))
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            return
+        ypr = quat2ypr(np.array(rot)).reshape((-1,))
+        rob_pose = np.array([trans[0], trans[1], ypr[0]])
+
+        rob_loc_px = [int((rob_pose[0]/loc_src_map.res)+loc_src_map.ct_px[0]), int((rob_pose[1]/loc_src_map.res)+loc_src_map.ct_px[1])]
+
 
         return
 
