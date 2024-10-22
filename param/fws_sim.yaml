@@ -85,4 +85,5 @@ loc:
   env_map: fws_map_sim.yaml
   loc_src_map: fws_map_sim_loc_src_map.yaml
   loc_src: 0 # 0: lidar, 1: gps
+  enter_gps_region_dist: 2  # in loc_src_map, how far [m] robot should leave the lidar region to enter gps loc mode
 

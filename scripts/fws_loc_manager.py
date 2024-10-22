@@ -12,6 +12,7 @@ from std_srvs.srv import SetBool
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose
 import copy
+from geometry_msgs.msg import PoseWithCovarianceStamped
 
 
 class LocManager:
@@ -41,11 +42,20 @@ class LocManager:
         self.env_map = self.load_map(self.env_map_yaml_file)
         self.loc_src_map = self.load_map(self.loc_src_map_yaml_file)
 
+        self.loc_state = 0  # 0: lidar, 1: gps
+        self.enter_gps_region_dist = self.param['loc']['enter_gps_region_dist']
+
         # map pub
         self.env_map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
 
         # tf listener
         self.tf_listener = tf.TransformListener()
+
+        # state change flag
+        self.loc_state_change = 0
+
+        # initialpose msg to restart als-ros
+        self.initialpose_pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=1)
 
     def update_map_and_loc(self):
         # # test loc sensor switching
@@ -61,6 +71,7 @@ class LocManager:
         # based on localization source map, determine which loc method (lidar or gps) will be used.
         loc_src_map = copy.copy(self.loc_src_map)
         env_map = copy.copy(self.env_map)
+        enter_gps_region_dist_pix = self.enter_gps_region_dist / loc_src_map.res
 
         # listen to the latest tf for base_link in map
         try:
@@ -71,10 +82,74 @@ class LocManager:
         ypr = quat2ypr(np.array(rot)).reshape((-1,))
         rob_pose = np.array([trans[0], trans[1], ypr[0]])
 
-        rob_loc_px = [int((rob_pose[0]/loc_src_map.res)+loc_src_map.ct_px[0]), int((rob_pose[1]/loc_src_map.res)+loc_src_map.ct_px[1])]
+        rob_loc_px = [(rob_pose[0]/loc_src_map.res)+loc_src_map.ct_px[0], (rob_pose[1]/loc_src_map.res)+loc_src_map.ct_px[1]]
 
+        u_min = max(int(rob_loc_px[0]-enter_gps_region_dist_pix), 0)
+        u_max = min(int(rob_loc_px[0]+enter_gps_region_dist_pix), self.loc_src_map.size[0])
+        v_min = max(int(rob_loc_px[1]-enter_gps_region_dist_pix), 0)
+        v_max = min(int(rob_loc_px[1]+enter_gps_region_dist_pix), self.loc_src_map.size[1])
+
+        local_loc_src_map = 100 - loc_src_map.np[v_min:v_max, u_min:u_max]
+
+        # determine the localization source
+        self.loc_state_change = 0
+        if self.loc_state == 0:  # if previously using lidar loc
+            # if robot is outside of the explored area + dist margin of the loc_src_map, use gps loc
+            if np.sum(local_loc_src_map) > 1:
+                pass
+            else:
+                self.loc_state = 1
+                self.loc_state_change = 1
+        elif self.loc_state == 1:  # if previously using gps loc
+            # if robot enters the explored area of the loc_src_map, use lidar loc
+            rob_loc_px_int = [int(rob_loc_px[0]), int(rob_loc_px[1])]
+            if 0<=rob_loc_px_int[0]<=self.loc_src_map.size[0] and 0<=rob_loc_px_int[0]<=self.loc_src_map.size[1]:
+                if 100-self.loc_src_map.np[rob_loc_px_int[0], rob_loc_px_int[1]]>1:
+                    self.loc_state = 0
+                    self.loc_state_change = 1
+        else:
+            rospy.logerr('unknown loc_state, returning ...')
+            return
+
+        # enable selected localization source
+        if self.loc_state_change:
+            if self.loc_state == 0:
+                # set the current robot pose as initial pose of the als
+                self.set_als_on()
+                rospy.sleep(0.1)
+                self.send_intialpose_to_als(rob_pose)
+                rospy.logwarn('/initialpose msg of [%f, %f, %f] sent to reset als.' % (rob_pose[0], rob_pose[1], rob_pose[2]))
+            elif self.loc_state == 1:
+                self.set_gps_on()
+            else:
+                rospy.logerr('unknown loc_state, returning ...')
+                return
 
         return
+
+    def send_intialpose_to_als(self, rob_pose):
+        pose_cov = PoseWithCovarianceStamped()
+
+        pose_cov.header.stamp = rospy.get_rostime()
+        pose_cov.header.frame_id = 'map'
+
+        pose_cov.pose.pose.position.x = rob_pose[0]
+        pose_cov.pose.pose.position.y = rob_pose[1]
+        quat = ypr2quat([rob_pose[2], 0, 0]).reshape((-1,))
+        pose_cov.pose.pose.orientation.z = quat[2]
+        pose_cov.pose.pose.orientation.w = quat[3]
+
+        xy_cov = 0.1**2
+        yaw_cov = np.deg2rad(10)**2
+        # cov is x, y, z, x_axis, y_axis, z_axis
+        pose_cov.pose.covariance = [xy_cov, 0, 0, 0, 0, 0,
+                                    0, xy_cov, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, yaw_cov]
+
+        self.initialpose_pub.publish(pose_cov)
 
     @staticmethod
     def create_map_msg(map_np, map_res, pose_2d):
