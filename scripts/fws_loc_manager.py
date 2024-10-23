@@ -13,6 +13,7 @@ from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose
 import copy
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from std_msgs.msg import Int8
 
 
 class LocManager:
@@ -25,7 +26,7 @@ class LocManager:
         with open(param_yaml_file, 'r') as file:
             self.param = yaml.safe_load(file)
 
-        self.manager_rate = rospy.Rate(10)
+        self.manager_rate = rospy.Rate(0.1)
 
         # servers
         rospy.wait_for_service('GpsLocOn')
@@ -43,6 +44,7 @@ class LocManager:
         self.loc_src_map = self.load_map(self.loc_src_map_yaml_file)
 
         self.loc_state = 0  # 0: lidar, 1: gps
+        self.loc_state_pub = rospy.Publisher('/loc_state', Int8, queue_size=1)
         self.enter_gps_region_dist = self.param['loc']['enter_gps_region_dist']
 
         # map pub
@@ -56,6 +58,17 @@ class LocManager:
 
         # initialpose msg to restart als-ros
         self.initialpose_pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=1)
+
+        # map pub
+        self.env_map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
+        self.loc_src_map_pub = rospy.Publisher('/loc_src_map', OccupancyGrid, queue_size=1)
+
+        # send initial map
+        loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res, [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
+        self.loc_src_map_pub.publish(loc_src_map_msg)
+        env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res, [-self.env_map.ct_m[0], -self.env_map.ct_m[1], 0])
+        self.env_map_pub.publish(env_map_msg)
+        rospy.logwarn('initial map msgs sent.')
 
     def update_map_and_loc(self):
         # # test loc sensor switching
@@ -124,6 +137,32 @@ class LocManager:
             else:
                 rospy.logerr('unknown loc_state, returning ...')
                 return
+
+        # publish current loc src
+        loc_state_msg = Int8()
+        loc_state_msg.data = int(self.loc_state)
+        self.loc_state_pub.publish(loc_state_msg)
+        loc_src_str = ''
+        if self.loc_state == 0:
+            loc_src_str = 'lidar'
+        elif self.loc_state == 1:
+            loc_src_str = 'gps'
+        else:
+            rospy.logerr('unknown loc_state, returning ...')
+            return
+        rospy.loginfo('current localization status: ' + loc_src_str)
+
+        # manage map
+        # send new map
+        update_map_on = False
+        if update_map_on:
+            loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res,
+                                                  [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
+            self.loc_src_map_pub.publish(loc_src_map_msg)
+            env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res,
+                                              [-self.env_map.ct_m[0], -self.env_map.ct_m[1], 0])
+            self.env_map_pub.publish(env_map_msg)
+            rospy.logwarn('new map msgs sent.')
 
         return
 
