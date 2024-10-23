@@ -13,7 +13,7 @@ import numpy as np
 import yaml
 
 from patrol_robot.srv import *
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, Int8
 
 from threading import Thread
 import tf
@@ -87,6 +87,10 @@ class WebUI:
         # self.joystick_vx_max = 0.5
         # self.joystick_w_max = 0.8
 
+        self.loc_status = 0  # 0: lidar, 1:gps
+        self.loc_state_sub = rospy.Subscriber('/loc_state', Int8, self.loc_status_cb)
+        self.gps_status = 0  # 6: rtk-dual
+
         with ui.row():
             ui.label('5G工业巡检机器人UI控制界面')
             ui.label('Patrol Robot Web GUI (Powered by NiceGUI)')
@@ -127,6 +131,14 @@ class WebUI:
                     # ui.slider(min=1, max=3).bind_value(self.demo, 'number')
                     # ui.toggle({1: 'A', 2: 'B', 3: 'C'}).bind_value(self.demo, 'number')
                     # ui.number().bind_value(self.demo, 'number')
+                ui.button('Status: ')
+                status_chbox = ui.checkbox('Check', value=True)
+                with ui.column().bind_visibility_from(status_chbox, 'value'):
+                    ui.label('Loc Status: ')
+                    with ui.row().classes('items-center'):
+                        self.loc_status_radio = ui.radio({0: 'Lidar', 1: 'GPS'}, value=0).props('inline')
+                    with ui.row().classes('items-center'):
+                        self.gps_status_label = ui.label('GPS Status: ' + str(self.gps_status))
             with ui.card().classes('border').classes('w-[42rem] h-[52rem]'):
                 ui.button('Task Client: ')
                 task_chbox = ui.checkbox('Enable', value=True)
@@ -192,6 +204,10 @@ class WebUI:
         self.thr.start()
 
         ui.run(title='Patrol Robot Web GUI', reload=False, show=False)
+
+    def loc_status_cb(self, msg):
+        self.loc_status = msg.data  # 0: lidar, 1:gps
+        self.loc_status_radio.value = self.loc_status
 
     def map_mouse_handler(self, e: MouseEventArguments):
         # color = 'SkyBlue' if e.type == 'mousedown' else 'SteelBlue'

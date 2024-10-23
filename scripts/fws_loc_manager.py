@@ -10,10 +10,10 @@ import rospkg
 from PIL import Image
 from std_srvs.srv import SetBool
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseWithCovarianceStamped
 import copy
-from geometry_msgs.msg import PoseWithCovarianceStamped
 from std_msgs.msg import Int8
+from nav_msgs.srv import GetMap
 
 
 class LocManager:
@@ -49,6 +49,7 @@ class LocManager:
 
         # map pub
         self.env_map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
+        self.env_map_srv = rospy.Service('static_map', GetMap, self.env_map_srv_cb)
 
         # tf listener
         self.tf_listener = tf.TransformListener()
@@ -60,8 +61,8 @@ class LocManager:
         self.initialpose_pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=1)
 
         # map pub
-        self.env_map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
-        self.loc_src_map_pub = rospy.Publisher('/loc_src_map', OccupancyGrid, queue_size=1)
+        self.env_map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1, latch=True)
+        self.loc_src_map_pub = rospy.Publisher('/loc_src_map', OccupancyGrid, queue_size=1, latch=True)
 
         # send initial map
         loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res, [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
@@ -69,6 +70,10 @@ class LocManager:
         env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res, [-self.env_map.ct_m[0], -self.env_map.ct_m[1], 0])
         self.env_map_pub.publish(env_map_msg)
         rospy.logwarn('initial map msgs sent.')
+
+    def env_map_srv_cb(self, req):
+        env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res,[-self.env_map.ct_m[0], -self.env_map.ct_m[1], 0])
+        return env_map_msg
 
     def update_map_and_loc(self):
         # # test loc sensor switching
@@ -154,7 +159,7 @@ class LocManager:
 
         # manage map
         # send new map
-        update_map_on = False
+        update_map_on = True
         if update_map_on:
             loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res,
                                                   [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])

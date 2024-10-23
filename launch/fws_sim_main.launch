@@ -13,8 +13,8 @@
     <!--     tf_manager -->
     <node pkg="patrol_robot" type="fws_tf_manager.py" name="fws_tf_manager"/>
 
-    <!--   map_server -->
-    <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/fws_map_sim.yaml"/>
+    <!--       map_server -->
+<!--     <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/fws_map_sim.yaml"/> -->
 
     <!--   if sim, process vlp16 in sim -->
     <include file="$(find patrol_robot)/launch/fws_handle_sim_vlp16.launch" />
@@ -26,12 +26,12 @@
     <node pkg="patrol_robot" type="gps_loc.py" name="gps_loc"/>
 
     <!--     fws_loc_manager -->
-<!--     <node pkg="patrol_robot" type="fws_loc_manager.py" name="fws_loc_manager"/> -->
+    <node pkg="patrol_robot" type="fws_loc_manager.py" name="fws_loc_manager"/>
 
     <!--     fws_simple_move_base_server -->
     <node pkg="patrol_robot" type="fws_simple_move_base_server.py" name="fws_simple_move_base_server" output="screen" />
 
-<!--      --><!--     simple_move_base_client -->
+    <!--     simple_move_base_client -->
 <!--     <node pkg="patrol_robot" type="simple_move_base_client.py" name="simple_move_base_client" output="screen" /> -->
 
     <!--    task manager, the clients for move base and line track -->
