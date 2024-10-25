@@ -35,8 +35,10 @@ class TaskManager:
         rospy.loginfo('TaskList service ready')
 
         # send stop signal to pure pursuit local planner
-        self.pp_loc_planner_stop_req = rospy.ServiceProxy('local_planner_pure_pursuit_stop', SetBool)
-        rospy.logwarn('local_planner_pure_pursuit_stop service connected.')
+        self.send_stop_req_on = 1
+        if self.send_stop_req_on:
+            self.pp_loc_planner_stop_req = rospy.ServiceProxy('local_planner_pure_pursuit_stop', SetBool)
+            rospy.logwarn('local_planner_pure_pursuit_stop service connected.')
 
         # move_base and track_line clients
         self.move_base_client = actionlib.SimpleActionClient('move_base', move_base_msgs.msg.MoveBaseAction)
@@ -186,6 +188,9 @@ class TaskManager:
     def stop(self):
         msg = Twist()
         self.cmd_vel_pub.publish(msg)
+        if self.send_stop_req_on:
+            res = self.pp_loc_planner_stop_req(True)
+            rospy.logwarn(res)
         return True
 
 
