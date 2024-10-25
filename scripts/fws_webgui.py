@@ -411,7 +411,6 @@ class WebUI:
         # notify user
         ui.notify('task_list saved to: ' + self.task_list_file)
 
-
     def task_list_load(self):
         task_list_loaded = np.loadtxt(self.task_list_file, delimiter=',')
         self.task_list = task_list_loaded.copy()
