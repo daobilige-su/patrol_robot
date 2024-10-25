@@ -13,6 +13,7 @@ from std_msgs.msg import String, Float32MultiArray
 from tf import transformations
 import tf
 from transform_tools import *
+from std_srvs.srv import SetBool, SetBoolResponse
 
 from actionlib_msgs.msg import GoalID
 
@@ -42,6 +43,9 @@ class PurePursuitPlannerFws:
         self.global_plan_sub = rospy.Subscriber("/move_base/NavfnROS/plan", Path, self.update_global_plan)
 
         self.move_base_cancel_pub = rospy.Publisher("/move_base/cancel", GoalID, queue_size=1)
+
+        # stop service
+        self.stop_srv = rospy.Service('local_planner_pure_pursuit_stop', SetBool, self.stop_cb)
 
         self.verbose = 0
 
@@ -100,6 +104,10 @@ class PurePursuitPlannerFws:
 
         path = self.global_plan[:, [0, 1, 3]]
         path_pose_num = path.shape[0]
+        if path_pose_num == 0:
+            if self.verbose:
+                rospy.logwarn('local_planner_pure_pursuit_fws_node: path is empty, returning.')
+            return
 
         # check if termination condition is satisfied
         # print(np.linalg.norm(rob_pose[0:2]-path[-1,0:2]))
@@ -116,7 +124,6 @@ class PurePursuitPlannerFws:
             # cancel current move_base action
             cancel_msg = GoalID()
             self.move_base_cancel_pub.publish(cancel_msg)
-            rospy.logwarn('move_base cancel msg sent')
             if self.verbose:
                 rospy.logwarn('move_base cancel msg sent')
 
@@ -174,6 +181,30 @@ class PurePursuitPlannerFws:
         self.cmd_vel_pub.publish(cmd_vel_msg)
 
         return True
+
+    def stop_cb(self, req):
+        if self.verbose:
+            rospy.logwarn('local_planner_pure_pursuit_fws: stop srv called')
+
+        # send cmd_vel
+        cmd_vel_msg = Twist()
+        self.cmd_vel_pub.publish(cmd_vel_msg)
+
+        # cancel current move_base action
+        cancel_msg = GoalID()
+        self.move_base_cancel_pub.publish(cancel_msg)
+        if self.verbose:
+            rospy.logwarn('move_base cancel msg sent')
+
+        # cancel current global plan
+        self.global_plan = None
+
+        # return response
+        res = SetBoolResponse()
+        res.success = True
+        res.message = 'stop srv called, vel is set to zero, move_base cancel msg sent.'
+
+        return res
 
 
 def main(args):

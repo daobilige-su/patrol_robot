@@ -19,6 +19,7 @@ import sys
 from std_msgs.msg import String, Float32MultiArray
 from patrol_robot.srv import TaskList
 from tf import transformations
+from std_srvs.srv import SetBool
 
 
 class TaskManager:
@@ -32,6 +33,10 @@ class TaskManager:
         # TaskList service to update self.task_list
         self.task_list_srv = rospy.Service('TaskList', TaskList, self.update_task_list)
         rospy.loginfo('TaskList service ready')
+
+        # send stop signal to pure pursuit local planner
+        self.pp_loc_planner_stop_req = rospy.ServiceProxy('local_planner_pure_pursuit_stop', SetBool)
+        rospy.logwarn('local_planner_pure_pursuit_stop service connected.')
 
         # move_base and track_line clients
         self.move_base_client = actionlib.SimpleActionClient('move_base', move_base_msgs.msg.MoveBaseAction)

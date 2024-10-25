@@ -1,7 +1,7 @@
 image: fws_map_sim_loc_src_map.pgm
 resolution: 0.01
 origin:
-- -15.56
+- -15.88
 - -20.04
 - 0.0
 negate: 0

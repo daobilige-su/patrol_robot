@@ -19,10 +19,6 @@ from threading import Thread
 import tf
 from tf import transformations
 
-class Demo:
-    def __init__(self):
-        self.number = 1
-
 
 class WebUI:
     def __init__(self):

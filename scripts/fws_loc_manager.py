@@ -121,8 +121,8 @@ class LocManager:
         elif self.loc_state == 1:  # if previously using gps loc
             # if robot enters the explored area of the loc_src_map, use lidar loc
             rob_loc_px_int = [int(rob_loc_px[0]), int(rob_loc_px[1])]
-            if 0<=rob_loc_px_int[0]<=self.loc_src_map.size[0] and 0<=rob_loc_px_int[0]<=self.loc_src_map.size[1]:
-                if 100-self.loc_src_map.np[rob_loc_px_int[0], rob_loc_px_int[1]]>1:
+            if 0<=rob_loc_px_int[0]<=self.loc_src_map.size[0] and 0<=rob_loc_px_int[1]<=self.loc_src_map.size[1]:
+                if (100-self.loc_src_map.np[rob_loc_px_int[1], rob_loc_px_int[0]])>1:
                     self.loc_state = 0
                     self.loc_state_change = 1
         else:
@@ -179,7 +179,7 @@ class LocManager:
 
         pose_cov.pose.pose.position.x = rob_pose[0]
         pose_cov.pose.pose.position.y = rob_pose[1]
-        quat = ypr2quat([rob_pose[2], 0, 0]).reshape((-1,))
+        quat = ypr2quat(np.array([rob_pose[2], 0, 0])).reshape((-1,))
         pose_cov.pose.pose.orientation.z = quat[2]
         pose_cov.pose.pose.orientation.w = quat[3]
 
