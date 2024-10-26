@@ -13,8 +13,8 @@ import datetime
 import time
 
 # params
-v_const = 0.15
-w_const = 0.15
+v_const = 0.35
+w_const = 0.4
 w_rot = 0.2
 jump_t_t = 1.2
 jump_t_r = 1.5
@@ -343,7 +343,7 @@ class line_track_action(object):
                     array_data_mid = np.mean(np.nonzero(array_data)[1]) + 1
                     array_data_mid_diff = array_data_mid - (array_data_len / 2.0 + 0.5)
                     v = v_const
-                    w = array_data_mid_diff * w_const
+                    w = -array_data_mid_diff * w_const
 
                 msg.linear.x = v
                 msg.angular.z = w
