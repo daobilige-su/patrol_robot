@@ -333,12 +333,13 @@ class FwsModel:
 def main(args):
     rospy.init_node('fws_model_node', anonymous=True)
     model = FwsModel()
-    try:
-        while not rospy.is_shutdown():
-            # model.do_something()
-            rospy.sleep(0.2)
-    except KeyboardInterrupt:
-        print("Shutting down")
+    rospy.spin()
+    # try:
+    #     while not rospy.is_shutdown():
+    #         # model.do_something()
+    #         rospy.sleep(0.2)
+    # except KeyboardInterrupt:
+    #     print("Shutting down")
 
 
 if __name__ == '__main__':

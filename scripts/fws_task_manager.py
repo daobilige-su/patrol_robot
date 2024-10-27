@@ -16,7 +16,7 @@ from geometry_msgs.msg import Pose, PoseArray, Point, Quaternion, Twist
 from visualization_msgs.msg import Marker
 import rospy
 import sys
-from std_msgs.msg import String, Float32MultiArray
+from std_msgs.msg import String, Float32MultiArray, Float32
 from patrol_robot.srv import TaskList
 from tf import transformations
 from std_srvs.srv import SetBool
@@ -29,6 +29,7 @@ class TaskManager:
         self.no_more_task_warned = 0
         self.task_sleep_rate = rospy.Rate(10)
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.photo_rot_pub = rospy.Publisher('/photo_rot', Float32MultiArray, queue_size=2)
 
         # TaskList service to update self.task_list
         self.task_list_srv = rospy.Service('TaskList', TaskList, self.update_task_list)
@@ -106,9 +107,11 @@ class TaskManager:
             elif task_list_cur[0]==3: # track_line mode, [3, dir, ...]
                 move_dir = task_list_cur[1].copy()
                 self.line_track_action(move_dir)
-            elif task_list_cur[0]==9: # do nothing mode, wait t seconds [9, t, ...]
-                t = task_list_cur[1].copy()
-                rospy.sleep(t)
+            elif task_list_cur[0]==9: # photo taking mode, send rotate angle cmd, and wait t seconds [9, angle, t, ...]
+                rot_ang_azim = task_list_cur[1].copy()
+                rot_ang_elev = task_list_cur[2].copy()
+                t = task_list_cur[3].copy()
+                self.photo_action(rot_ang_azim, rot_ang_elev, t)
             else:
                 rospy.logerr('unknown task code.')
         else:
@@ -184,6 +187,13 @@ class TaskManager:
 
         self.line_track_client.wait_for_result()
         rospy.logerr("line_track_client: goal completed")
+
+    def photo_action(self, rot_ang_azim, rot_ang_elev, t):
+        msg = Float32MultiArray()
+        msg.data = [rot_ang_azim, rot_ang_elev]
+        self.photo_rot_pub.publish(msg)
+        rospy.sleep(t)
+        pass
 
     def stop(self):
         msg = Twist()

@@ -92,7 +92,7 @@ class WebUI:
             ui.label('Patrol Robot Web GUI (Powered by NiceGUI)')
 
         with ui.row():
-            with ui.card().classes('w-[52rem] h-[52rem] bg-orange-3 border'):
+            with ui.card().classes('w-[52rem] h-[57rem] bg-orange-3 border'):
                 ui.button('Map: ')
                 self.sa = ui.scroll_area().classes('w-[50rem] h-[40rem]')
                 with self.sa:
@@ -109,7 +109,7 @@ class WebUI:
                     self.map_robot_sw = ui.switch('Robot On', value=True, on_change=self.map_robot_handler)
                     self.map_robot_handler()
                     self.map_center_but = ui.button('Map Center', on_click=self.map_center_handler)
-            with ui.card().classes('border').classes('w-[15rem] h-[52rem]'):
+            with ui.card().classes('border').classes('w-[15rem] h-[57rem]'):
                 ui.button('Control: ')
                 control_chbox = ui.checkbox('Enable', value=True)
                 with ui.column().bind_visibility_from(control_chbox, 'value'):
@@ -134,8 +134,12 @@ class WebUI:
                     with ui.row().classes('items-center'):
                         self.loc_status_radio = ui.radio({0: 'Lidar', 1: 'GPS'}, value=0).props('inline')
                     with ui.row().classes('items-center'):
-                        self.gps_status_label = ui.label('GPS Status: ' + str(self.gps_status))
-            with ui.card().classes('border').classes('w-[42rem] h-[52rem]'):
+                        gps_status_label_name = ui.label('GPS Status: ')
+                        self.gps_status_label = ui.label(str(self.gps_status))
+                    with ui.row().classes('items-center'):
+                        robot_pose_label_name = ui.label('Robot Pose: ')
+                        self.robot_pose_label = ui.label('[%7.3f, %7.3f, %7.3f]' % (self.robot_pose_cur[0], self.robot_pose_cur[1], self.robot_pose_cur[2]))
+            with ui.card().classes('border').classes('w-[42rem] h-[57rem]'):
                 ui.button('Task Client: ')
                 task_chbox = ui.checkbox('Enable', value=True)
                 with ui.column().bind_visibility_from(task_chbox, 'value'):
@@ -176,9 +180,12 @@ class WebUI:
                         ui.label('Line Track: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_line_track)
                     with ui.row().classes('items-center'):
-                        ui.label('Wait: ').classes('w-24')
+                        ui.label('Photo: ').classes('w-24')
                         ui.button('Insert', on_click=self.task_list_insert_wait)
-                        self.wait_input_t = ui.input('t(s)', value='0.0').classes('w-8')
+                        ui.label('Param: ')
+                        self.photo_input_ang_azim = ui.input('azim(rad)', value='0.0').classes('w-16')
+                        self.photo_input_ang_elev = ui.input('elev(rad)', value='0.0').classes('w-16')
+                        self.photo_input_t = ui.input('t(s)', value='0.0').classes('w-8')
 
 
 
@@ -480,7 +487,8 @@ class WebUI:
         row = await self.aggrid.get_selected_row()
         if row:
             row_idx = row['index'] - 1
-            self.task_list[row_idx, :] = np.array([9, self.wait_input_t.value, 0, 0, 0, 0, 0, 0, 0, 0])
+            self.task_list[row_idx, :] = np.array([9, self.photo_input_ang_azim.value, self.photo_input_ang_elev.value,
+                                                   self.photo_input_t.value, 0, 0, 0, 0, 0, 0])
             self.update_aggrid()
             self.compute_task_content()
             self.map_ii_content_handler()
@@ -576,6 +584,9 @@ class WebUI:
                     y_axis_pose = [self.robot_pose_cur[0], self.robot_pose_cur[1], self.robot_pose_cur[2]+(np.pi/2)]
                     self.ii_robot_pose_content = self.compute_arrow_content(x_axis_pose, 'red', self.param['web_gui']['map_arrow_len']/2) + \
                                                  self.compute_arrow_content(y_axis_pose, 'green', self.param['web_gui']['map_arrow_len']/2)
+
+                    # update label
+                    self.robot_pose_label.set_text('[%7.3f, %7.3f, %7.3f]' % (self.robot_pose_cur[0], self.robot_pose_cur[1], self.robot_pose_cur[2]))
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                     continue
 
