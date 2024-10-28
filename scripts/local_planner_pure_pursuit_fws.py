@@ -73,7 +73,17 @@ class PurePursuitPlannerFws:
             pose_trans_ypr = np.block([trans, ypr])
             global_plan[n, :] = pose_trans_ypr.copy()
 
+        # use the heading of the last pose in the path
+        # while in global_planner's orientation_filter=None(=0) mode, only the heading the of last pose of the path is
+        # the heading of the goal pose, the rest of them is 0. (http://wiki.ros.org/global_planner?distro=noetic)
+        # so, we can set the heading of the all pose in the path to be the heading of the goal pose.
+        # but in practice even the last pose of the path is occasionally with the heading zero. strange!
+        # Maybe use orientation_filter=Interpolate=2 (Orientations are a linear blend of start and goal pose) ?
+        if self.end_heading_on:
+            global_plan[:, 3] = global_plan[-1, 3]
+
         self.global_plan = global_plan.copy()
+
 
     @staticmethod
     def wraptopi(x):
@@ -144,6 +154,8 @@ class PurePursuitPlannerFws:
                 break
         look_ahead_pt_idx = look_ahead_pt_idx-1
         look_ahead_pt = path[look_ahead_pt_idx, :]
+
+        # print('look_ahead_pt[2] = %f' % look_ahead_pt[2])
 
         # relative pose
         rob_pose_3d_T = transform_trans_ypr_to_matrix(np.array([rob_pose[0], rob_pose[1], 0, rob_pose[2], 0, 0]))
