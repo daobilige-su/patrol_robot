@@ -28,6 +28,8 @@ class PurePursuitPlannerFws:
         self.w_heading_max = np.deg2rad(20)
         self.w_max = np.deg2rad(20)
 
+        self.end_heading_on = 1
+
         self.nav_tol_dist = 0.1
         self.nav_tol_heading = np.deg2rad(10)
 
