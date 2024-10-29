@@ -32,47 +32,43 @@ class simple_move_base_action(object):
         with open(cfgfile_path, 'r') as stream:
             self.param = yaml.safe_load(stream)
 
-        # pose_diff_dist_thr = 0.1
-        self.pose_diff_dist_thr = self.param['simple_move_base']['pose_diff_dist_thr']
-        # pose_diff_yaw_thr = 5.0*(math.pi/180.0)
-        self.pose_diff_yaw_thr = self.param['simple_move_base']['pose_diff_yaw_thr_deg'] * (math.pi / 180.0)
-        # pose_diff_2d_line_yaw_thr = 10.0*(math.pi/180.0)
-        self.pose_diff_2d_line_yaw_thr = self.param['simple_move_base']['pose_diff_2d_line_yaw_thr_deg'] * (math.pi / 180.0)
+        # cmd vel related params
+        self.cmd_vel_x_p = self.param['simple_move_base']['cmd_vel_x_p']  # proportional gain w.r.t. trans err
+        self.cmd_vel_theta_p = self.param['simple_move_base']['cmd_vel_theta_p']  # proportional gain w.r.t. rot err
+        self.cmd_vel_x_max = self.param['simple_move_base']['cmd_vel_x_max']  # max trans vel
+        self.cmd_vel_theta_max = self.param['simple_move_base']['cmd_vel_theta_max']  # max rot vel
+        self.cmd_vel_x_min = self.param['simple_move_base']['cmd_vel_x_min']  # min trans vel
+        self.cmd_vel_theta_min = self.param['simple_move_base']['cmd_vel_theta_min']  # min rot vel
+        self.ctl_freq = self.param['simple_move_base']['ctl_freq']  # cmd_vel frequency
 
-        # cmd_vel_x_p = 0.75
-        self.cmd_vel_x_p = self.param['simple_move_base']['cmd_vel_x_p']
-        # cmd_vel_theta_p = 0.75
-        self.cmd_vel_theta_p = self.param['simple_move_base']['cmd_vel_theta_p']
-        # cmd_vel_x_max = 0.25
-        self.cmd_vel_x_max = self.param['simple_move_base']['cmd_vel_x_max']
-        # cmd_vel_theta_max = 0.25
-        self.cmd_vel_theta_max = self.param['simple_move_base']['cmd_vel_theta_max']
-        # cmd_vel_x_min = 0.0
-        self.cmd_vel_x_min = self.param['simple_move_base']['cmd_vel_x_min']
-        # cmd_vel_theta_min = 0.0
-        self.cmd_vel_theta_min = self.param['simple_move_base']['cmd_vel_theta_min']
-        self.ctl_freq = self.param['simple_move_base']['ctl_freq']
+        # heading difference threshold to do pure rotation, if cur pose and goal pose's yaw difference is larger than
+        # this, do only pure rotation, otherwise do rotation and translation together
+        self.pure_rot_yaw_diff_thr = np.deg2rad(self.param['simple_move_base']['pure_rot_yaw_diff_thr'])
+
+        # termination condition, trans and heading tolerance threshold
+        self.pose_diff_dist_thr = self.param['simple_move_base']['pose_diff_dist_thr']
+        self.pose_diff_yaw_thr = self.param['simple_move_base']['pose_diff_yaw_thr_deg'] * (math.pi / 180.0)
+
+        # when end is precise localization: 0, number of continuous satisfaction of termination condition
+        self.precise_mode_success_number = self.param['simple_move_base']['precise_mode_success_number']
+
+        # in pass through mode, terminate when trans tolerance error is <
+        # self.pass_through_trans_error_factor*self.pose_diff_dist_thr (dont care about heading)
+        self.pass_through_trans_error_factor = 3.0
 
         self.verbose = self.param['simple_move_base']['verbose']
 
     def execute_cb(self, goal):
         # helper variables
-        r = rospy.Rate(5)
+        r = rospy.Rate(self.ctl_freq)
         success = False
 
-        # append the seeds for the fibonacci sequence
-        # self._feedback.sequence = []
-        # self._feedback.sequence.append(0)
-        # self._feedback.sequence.append(1)
-
-        # publish info to the console for the user
-        # rospy.loginfo('%s: Executing, creating fibonacci sequence of order %i with seeds %i, %i' % (
-        # self._action_name, goal.order, self._feedback.sequence[0], self._feedback.sequence[1]))
         if self.verbose:
             rospy.loginfo('%s: Executing, obtained goal pose of (%f, %f, %f, %f, %f, %f, %f)' % (
                 self._action_name, goal.target_pose.pose.position.x, goal.target_pose.pose.position.y, goal.target_pose.pose.position.z,
                 goal.target_pose.pose.orientation.x, goal.target_pose.pose.orientation.y, goal.target_pose.pose.orientation.z, goal.target_pose.pose.orientation.w))
 
+        # the 3 termination mode is set based on goal pose's z coord, 11.0: precise mode, 12.0: pass through mode
         end_mode = 0
         if goal.target_pose.pose.position.z == 11.0:
             end_mode = 1
@@ -86,18 +82,15 @@ class simple_move_base_action(object):
         pose_tar_M = transform_matrix_from_trans_ypr(pose_tar_trans_ypr)
 
         # start executing the action
-        n = 0
-        mode = -1 # -1: uninitialized, 1: rotate to face target direction, 2: drive to target, 3: rotate to target pose direction, 4: done
         cmd_vel_x_diff = 0.0
         cmd_vel_theta_diff = 0.0
         cmd_vel_x = 0.0
         cmd_vel_theta= 0.0
         cmd_vel_msg = Twist()
 
-        mode = 1
+        # when end is precise localization: 1, number of continuous satisfaction of termination condition
         end_mode_1_succ_num = 0
         while success!=True:
-            n = n + 1
 
             # check that preempt has not been requested by the client
             if self._as.is_preempt_requested():
@@ -126,26 +119,30 @@ class simple_move_base_action(object):
             pose_diff_M_2d_line_yaw = np.arctan2(pose_diff_trans_ypr[1,0],pose_diff_trans_ypr[0,0])
             pose_diff_M_2d_line_dist = np.sqrt(pose_diff_trans_ypr[0,0]**2 + pose_diff_trans_ypr[1,0]**2)
 
-            # compute error in x, y and theta
-            if abs(pose_diff_trans_ypr[3, 0]) > self.pose_diff_yaw_thr:
+            # compute error in x, y and theta, based on which the cmd_vel is send by multiplying a proportional gain
+            # if pose heading difference is very large, do pure rotation first, otherwise do translation and rotation together
+            if abs(pose_diff_trans_ypr[3, 0]) > self.pure_rot_yaw_diff_thr:
                 cmd_vel_x_diff = 0.0
                 cmd_vel_y_diff = 0.0
-                cmd_vel_theta_diff = np.sign(pose_diff_trans_ypr[3, 0]) * 0.35
+                cmd_vel_theta_diff = np.sign(pose_diff_trans_ypr[3, 0]) * self.pure_rot_yaw_diff_thr  # 0.35
             else:
                 cmd_vel_x_diff = pose_diff_M_2d_line_dist * np.cos(pose_diff_M_2d_line_yaw)
                 cmd_vel_y_diff = pose_diff_M_2d_line_dist * np.sin(pose_diff_M_2d_line_yaw)
                 cmd_vel_theta_diff = pose_diff_trans_ypr[3, 0]
 
-            if end_mode==0:  # Normal
+            # (0) Normal ending mode, when termination condition is met, set cmd_vel to 0, and return.
+            if end_mode==0:
                 if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
                     cmd_vel_x_diff = 0.0
                     cmd_vel_y_diff = 0.0
                     cmd_vel_theta_diff = 0.0
                     success = True
-            elif end_mode==1:  # Precise
+            # (1) Precise mode, when termination condition is continuously satisfied for self.precise_mode_success_number
+            # times, terminate.
+            elif end_mode==1:
                 if (abs(pose_diff_trans_ypr[3, 0]) < self.pose_diff_yaw_thr) and (pose_diff_M_2d_line_dist < self.pose_diff_dist_thr):
                     end_mode_1_succ_num = end_mode_1_succ_num+1
-                    if end_mode_1_succ_num == 50:
+                    if end_mode_1_succ_num == self.precise_mode_success_number:
                         cmd_vel_x_diff = 0.0
                         cmd_vel_y_diff = 0.0
                         cmd_vel_theta_diff = 0.0
@@ -153,8 +150,11 @@ class simple_move_base_action(object):
                         end_mode_1_succ_num = 0
                 else:
                     end_mode_1_succ_num = 0
-            elif end_mode==2:  # Pass through
-                if pose_diff_M_2d_line_dist < 3*self.pose_diff_dist_thr:
+            # (2) Pass through mode, terminate when trans tolerance error is <
+            # self.pass_through_trans_error_factor*self.pose_diff_dist_thr (dont care about heading)
+            # terminate without setting cmd_vel to zero
+            elif end_mode==2:
+                if pose_diff_M_2d_line_dist < self.pass_through_trans_error_factor*self.pose_diff_dist_thr:
                     success = True
 
             cmd_vel_x = cmd_vel_x_diff * self.cmd_vel_x_p
@@ -162,10 +162,11 @@ class simple_move_base_action(object):
             cmd_vel_theta = cmd_vel_theta_diff * self.cmd_vel_theta_p
 
             # max velocity constraints
+            # trans max velo
             if np.sqrt(cmd_vel_x**2 + cmd_vel_y**2) > self.cmd_vel_x_max:
                 cmd_vel_x = cmd_vel_x * (self.cmd_vel_x_max / np.sqrt(cmd_vel_x ** 2 + cmd_vel_y ** 2))
                 cmd_vel_y = cmd_vel_y * (self.cmd_vel_x_max / np.sqrt(cmd_vel_x ** 2 + cmd_vel_y ** 2))
-
+            # rot max velo
             if cmd_vel_theta>self.cmd_vel_theta_max:
                 cmd_vel_theta = self.cmd_vel_theta_max
             elif cmd_vel_theta<(-1.0*self.cmd_vel_theta_max):
@@ -190,15 +191,13 @@ class simple_move_base_action(object):
             # publish "cmd_vel"
             self.cmd_vel_pub.publish(cmd_vel_msg)
 
-            # self._feedback.sequence.append(self._feedback.sequence[i] + self._feedback.sequence[i - 1])
             # publish the feedback
             # self._feedback.base_position.header = TODO
             self._as.publish_feedback(self._feedback)
             # this step is not necessary, the sequence is computed at 1 Hz for demonstration purposes
-            r.sleep()# /clock needs to publishing (explicitely publish clock if /use_sim_time is set)
+            r.sleep()  # /clock needs to publishing (explicitly publish clock if /use_sim_time is set)
 
         if success:
-            # self._result.sequence = self._feedback.sequence
             rospy.loginfo('%s: Succeeded' % self._action_name)
             self._as.set_succeeded(self._result)
 

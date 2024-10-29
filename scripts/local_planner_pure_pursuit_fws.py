@@ -16,22 +16,31 @@ from transform_tools import *
 from std_srvs.srv import SetBool, SetBoolResponse
 
 from actionlib_msgs.msg import GoalID
+import yaml
 
 
 class PurePursuitPlannerFws:
     def __init__(self):
         # param
-        self.controller_freq = 5
-        self.look_ahead_dist = 0.3
-        self.v_dist_max = 0.2
-        self.v_max = 0.5
-        self.w_heading_max = np.deg2rad(20)
-        self.w_max = np.deg2rad(20)
+        param_yaml_file = rospy.get_param('/param_yaml_file')
+        with open(param_yaml_file, 'r') as file:
+            self.param = yaml.safe_load(file)
 
-        self.end_heading_on = 1
+        self.controller_freq = self.param['pure_pursuit_planner_fws']['controller_freq']  # freq of sending ctrl cmd
+        self.look_ahead_dist = self.param['pure_pursuit_planner_fws']['look_ahead_dist']  # look head dist of pure pursuit
+        self.v_dist_max = self.param['pure_pursuit_planner_fws']['v_dist_max']  # if dist error is larger than this, use v_max
+        self.v_max = self.param['pure_pursuit_planner_fws']['v_max']  # max linear velocity
+        self.w_heading_max = np.deg2rad(self.param['pure_pursuit_planner_fws']['w_heading_max'])  # if heading error is larger than this, use w_max
+        self.w_max = np.deg2rad(self.param['pure_pursuit_planner_fws']['w_max'])  # max angular velocity
 
-        self.nav_tol_dist = 0.1
-        self.nav_tol_heading = np.deg2rad(10)
+        self.nav_tol_dist = self.param['pure_pursuit_planner_fws']['nav_tol_dist']  # tolerance dist of goal pose
+        self.nav_tol_heading = np.deg2rad(self.param['pure_pursuit_planner_fws']['nav_tol_heading'])  # tolerance heading of goal pose
+
+        # if all poses in path has the same heading with the last pose, since by default only the last pose of path has
+        # the same heading with the goal pose with rest of them have heading values of zeros.
+        self.end_heading_on = self.param['pure_pursuit_planner_fws']['end_heading_on']
+
+        self.verbose = self.param['pure_pursuit_planner_fws']['verbose']  # verbose flag
 
         # var to store the current global plan
         self.global_plan = None
@@ -43,13 +52,13 @@ class PurePursuitPlannerFws:
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=2)
         # self.global_plan_sub = rospy.Subscriber("/global_plan", Path, self.update_global_plan)
         self.global_plan_sub = rospy.Subscriber("/move_base/NavfnROS/plan", Path, self.update_global_plan)
-
+        # after the goal is reached, cancel the current move_base action, or its own local planner might still run
         self.move_base_cancel_pub = rospy.Publisher("/move_base/cancel", GoalID, queue_size=1)
 
         # stop service
         self.stop_srv = rospy.Service('local_planner_pure_pursuit_stop', SetBool, self.stop_cb)
 
-        self.verbose = 0
+        return
 
     def update_global_plan(self, global_path_msg):
         pose_num = len(global_path_msg.poses)
@@ -83,7 +92,6 @@ class PurePursuitPlannerFws:
             global_plan[:, 3] = global_plan[-1, 3]
 
         self.global_plan = global_plan.copy()
-
 
     @staticmethod
     def wraptopi(x):

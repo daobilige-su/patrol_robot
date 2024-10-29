@@ -19,6 +19,8 @@ from threading import Thread
 import tf
 from tf import transformations
 
+from gps_common.msg import GPSFix
+
 
 class WebUI:
     def __init__(self):
@@ -205,6 +207,8 @@ class WebUI:
         self.tf_listener = tf.TransformListener()
         self.thr = Thread(target=self.robot_pose_update)
         self.thr.start()
+
+        self.fdi_gps_sub = rospy.Subscriber(self.param['web_gui']['gps_topic'], GPSFix, self.gps_cb)
 
         ui.run(title='Patrol Robot Web GUI', reload=False, show=False)
 
@@ -592,6 +596,11 @@ class WebUI:
 
             self.map_ii_content_handler()
             rate.sleep()
+
+    # callback function to monitor gps signal condition
+    def gps_cb(self, msg):
+        gps_status = msg.status.status
+        self.gps_status_label.set_text(str(gps_status))
 
 
 # if __name__ in {"__main__", "__mp_main__"}:

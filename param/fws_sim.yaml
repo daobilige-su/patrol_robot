@@ -1,23 +1,24 @@
-
+# robot params
 base:
   wheel_diameter: 0.25
-  L: 0.25  # FL wheel x coord
-  W: 0.25  # FL wheel y coord
+  L: 0.25  # FL (Front Left) wheel x coord
+  W: 0.25  # FL (Front Left wheel y coord
   d: 0  # deviation
-  steer_theta_min: -180.0
-  steer_theta_max: 180.0
+  steer_theta_min: -180.0 # steering wheel min angle, in deg
+  steer_theta_max: 180.0 # steering wheel max angle, in deg
 
+# params for laser scanner
 laser:
-  min_height: -0.4
-  max_height: 1.0
-  angle_min: -3.14
-  angle_max: 3.14
-  angle_increment: 0.0045 # 1440
-  scan_time: 0.1
-  range_min: 0.44
-  range_max: 20.0
+  min_height: -0.4 # min z coord of lidar pts w.r.t. lidar frame, pts with z less than this will be dropped
+  max_height: 1.0 # max z coord of lidar pts w.r.t. lidar frame, pts with z larger than this will be dropped
+  angle_min: -3.14 # min scan angle
+  angle_max: 3.14 # max scan angle
+  angle_increment: 0.0045 # in rad, denotes 1440 scan pts
+  scan_time: 0.1 # each scan time
+  range_min: 0.44 # min dist, lidar pts with dist less than this will be dropped
+  range_max: 20.0 # max dist, lidar pts with dist larger than this will be dropped
 
-
+# move_base params
 global_costmap:
   obstacle_range: 3
   raytrace_range: 3
@@ -48,42 +49,81 @@ local_costmap:
   resolution: 0.01
   inflation_radius: 1.0
 
+pure_pursuit_planner_fws:  # pure pursuit local planner's param, it replaces move_base's local planner
+  controller_freq: 5 # freq of sending ctrl cmd
+  look_ahead_dist: 0.3 # look head dist of pure pursuit
+  v_dist_max: 0.2 # if dist error is larger than this, use v_max
+  v_max: 0.5 # max linear velocity
+  w_heading_max: 20 # in deg, if heading error is larger than this, use w_max
+  w_max: 20 # in deg, max angular velocity
+  nav_tol_dist: 0.1 # tolerance dist of goal pose
+  nav_tol_heading: 10 # in deg, tolerance heading of goal pose
+  end_heading_on: 1 # if all poses in path has the same heading with the last pose
+  verbose: 0 # verbose flag
+
+# simple_move_base params
+# 3 termination mode are set based on goal pose's z coord, 11.0: precise mode, 12.0: pass through mode, otherwise normal
 simple_move_base:
-  verbose: 1
+  verbose: 0
   cmd_vel_x_p: 0.75  # Proportional gain for translational velocity, proportion to goal and current positional difference
   cmd_vel_theta_p: 1.2 # Proportional gain for rotational velocity, proportion to goal and current heading difference
   cmd_vel_x_max: 0.5 # max translational velocity
   cmd_vel_theta_max: 0.4 # max rotational velocity
   cmd_vel_x_min: 0.04 # min translational velocity to start the robot moving forward
   cmd_vel_theta_min: 0.1 # min rotational velocity to start the robot rotating
+  pure_rot_yaw_diff_thr: 20 # in deg, heading difference threshold to do pure rotation
   ctl_freq: 5
 
+  # termination condition
   pose_diff_dist_thr: 0.1 # positional error tolerance for goal position
-  pose_diff_yaw_thr_deg: 5.0 # heading error tolerance for goal position
-  pose_diff_2d_line_yaw_thr_deg: 10.0 # # heading error tolerance when traveling to the goal position
+  pose_diff_yaw_thr_deg: 5.0 # in deg, heading error tolerance for goal position
 
+  precise_mode_success_number: 50 # when precise mode is set, number of continuous satisfaction of termination condition
+
+# line track's param
+line_track:
+  line_sensor_topic: /meg_sensor # Int8MultiArray, 0 for bg, 1 for line, e.g. [0, 0, 0, 1, 1, 0, 0]
+  v_const: 0.35 # ref const linear vel when tracking line
+  w_const: 0.4 # ref const angular vel when tracking line
+  w_rot: 0.2 # ref angular vel when rotating/turn left/right/back
+  jump_t_t: 1.2 # ref time for sleeping when moving apart from current cross line with translation motion
+  jump_t_r: 1.5 # ref time for sleeping when moving apart from current cross line with rotation motion
+  unit_t: 0.05 # ref unit sleeping time
+
+cam_to_line:
+  freq: 1.0 # how frequently the image is changed to line sensor reading
+  line_cam_topic: /front_rgb_cam/image_raw # image topic
+  img_v_por: [0, 0.3] # portion of v index of image to be used for line sensor reading
+  negate_color: 1 # if color value will be inverted, 1 for black line, 0 for white line
+  line_sensor_num: 7 # number of sensors for the virtual line sensor
+  color_thr: 150 # color threshold for gray scale image, larger than this value will be line, otherwise background.
+  blur_size: 16 # blurring window size, 16 for 240x320 image
+  verbose: 0 # if lots of printing is enabled.
+
+# web gui's param
 web_gui:
   # map: fws_map_sim.yaml
-  grid_size: 1.0
-  map_arrow_len: 0.5
-  map_vis_shrink_factor: 2.0
+  grid_size: 1.0 # size of each grid over the map
+  map_arrow_len: 0.5 # XY coord arrow size
+  map_vis_shrink_factor: 2.0 # map size shrinking factor
   robot_pose_init: [ 0.0, 0.0, 0.0 ]
-  server_connection: 1
+  server_connection: 1 # if task_manager should be connected
+  gps_topic: /gnss_dual_ant/fix # gps topic name, used to display gps signal condition
 
 gps:
-  # gps_loc_on: 0
-  # src: 0 # 0: sim, 1: fdi
-  # ref_lla: [40.0, 117.0, 0.0]
-  ref_lla: [40.0, 117.0, 0.0]
+  # ref_lla: [40.0, 117.0, 0.0] # reference lla, i.e. usually the lla of the map origin
+  ref_lla: [40.0, 117.0, 0.0] # reference lla, i.e. usually the lla of the map origin
 
 tf:
   tran_ypr_map_in_enu: [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ] # map coord in enu coord
   tran_ypr_baselink_in_gps: [ 0.25, 0.0, 0.0, 0.0, 0.0, 0.0 ] # base_link coord in gps coord
-  tran_ypr_laserlink_in_baselink: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  tran_ypr_laserlink_in_baselink: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # laser_link coord in base_link coord
 
 loc:
-  env_map: fws_map_sim.yaml
-  loc_src_map: fws_map_sim_loc_src_map.yaml
-  loc_src: 0 # 0: lidar, 1: gps
+  freq: 1.0 # hz, how frequently the localization source is checked
+  map_update_time: 10.0 # time duration a new map might be sent
+  env_map: fws_map_sim.yaml # env map file name
+  loc_src_map: fws_map_sim_loc_src_map.yaml # localization source map file name
+  loc_src: 0 # default/init source for localization, 0: lidar, 1: gps
   enter_gps_region_dist: 2  # in loc_src_map, how far [m] robot should leave the lidar region to enter gps loc mode
 

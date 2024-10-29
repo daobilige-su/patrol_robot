@@ -183,10 +183,10 @@ class TaskManager:
         goal.target_location = [int(move_dir)]
 
         self.line_track_client.send_goal(goal)
-        rospy.logerr('line_track_client: sent new goal (%f)' % (goal.target_location[0]))
+        rospy.logwarn('line_track_client: sent new goal (%f)' % (goal.target_location[0]))
 
         self.line_track_client.wait_for_result()
-        rospy.logerr("line_track_client: goal completed")
+        rospy.logwarn("line_track_client: goal completed")
 
     def photo_action(self, rot_ang_azim, rot_ang_elev, t):
         msg = Float32MultiArray()

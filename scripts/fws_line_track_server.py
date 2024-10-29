@@ -11,20 +11,28 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import datetime
 import time
+import yaml
 
-# params
-v_const = 0.35
-w_const = 0.4
-w_rot = 0.2
-jump_t_t = 1.2
-jump_t_r = 1.5
-unit_t = 0.05
 
 class line_track_action(object):
     _feedback = patrol_robot.msg.line_trackFeedback()
     _result = patrol_robot.msg.line_trackResult()
 
     def __init__(self):
+        # params
+        param_yaml_file = rospy.get_param('/param_yaml_file')
+        with open(param_yaml_file, 'r') as file:
+            self.param = yaml.safe_load(file)
+
+        self.v_const = self.param['line_track']['v_const']  # ref const linear vel when tracking line
+        self.w_const = self.param['line_track']['w_const']  # ref const angular vel when tracking line
+        self.w_rot = self.param['line_track']['w_rot']  # ref angular vel when rotating/turn left/right/back
+        # ref time for sleeping when moving apart from current cross line with translation motion
+        self.jump_t_t = self.param['line_track']['jump_t_t']
+        # ref time for sleeping when moving apart from current cross line with rotation motion
+        self.jump_t_r = self.param['line_track']['jump_t_r']
+        self.unit_t = self.param['line_track']['unit_t']  # ref unit sleeping time
+
         self._action_name = 'line_track'
         self._as = actionlib.SimpleActionServer(self._action_name, patrol_robot.msg.line_trackAction,
                                                 execute_cb=self.execute_cb, auto_start=False)
@@ -60,10 +68,10 @@ class line_track_action(object):
         # move forward
         if move_dir==1:
             # move apart
-            msg.linear.x = v_const
+            msg.linear.x = self.v_const
             msg.angular.z = 0
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_t)
+            rospy.sleep(self.jump_t_t)
 
             while not rospy.is_shutdown():
 
@@ -73,14 +81,14 @@ class line_track_action(object):
                 array_data_sum = np.sum(array_data)
                 if array_data_sum==0:
                     rospy.logwarn('In %s: meg sensor has no reading' % (self._action_name))
-                    rospy.sleep(unit_t)
+                    rospy.sleep(self.unit_t)
                     continue
 
                 array_data_mid = np.mean(np.nonzero(array_data)[1])+1
                 array_data_mid_diff = array_data_mid-(array_data_len/2.0+0.5)
 
-                v=v_const
-                w=array_data_mid_diff*w_const
+                v=self.v_const
+                w=array_data_mid_diff*self.w_const
 
                 if array_data_sum>array_data_len*(2.0/3.0):
                     v = 0
@@ -90,18 +98,18 @@ class line_track_action(object):
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
 
-        # move backward
+        # move backward, needs meg_sensor at robot back
         if move_dir == 2:
             # move apart
-            msg.linear.x = -v_const
+            msg.linear.x = -self.v_const
             msg.angular.z = 0
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_t)
+            rospy.sleep(self.jump_t_t)
 
             while not rospy.is_shutdown():
 
@@ -111,14 +119,14 @@ class line_track_action(object):
                 array_data_sum = np.sum(array_data)
                 if array_data_sum == 0:
                     rospy.logwarn('In %s: meg sensor has no reading' % (self._action_name))
-                    rospy.sleep(unit_t)
+                    rospy.sleep(self.unit_t)
                     continue
 
                 array_data_mid = np.mean(np.nonzero(array_data)[1]) + 1
                 array_data_mid_diff = array_data_mid - (array_data_len / 2.0 + 0.5)
 
-                v = -v_const
-                w = array_data_mid_diff * w_const
+                v = -self.v_const
+                w = array_data_mid_diff * self.w_const
 
                 if array_data_sum > array_data_len * (2.0 / 3.0):
                     v = 0
@@ -128,7 +136,7 @@ class line_track_action(object):
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
@@ -136,15 +144,15 @@ class line_track_action(object):
         # turn left
         if move_dir == 3:
             # move apart
-            msg.linear.x = v_const
+            msg.linear.x = self.v_const
             msg.angular.z = 0
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_t)
+            rospy.sleep(self.jump_t_t)
 
             msg.linear.x = 0
-            msg.angular.z = 1.0 * w_rot
+            msg.angular.z = 1.0 * self.w_rot
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_r)
+            rospy.sleep(self.jump_t_r)
 
             while not rospy.is_shutdown():
 
@@ -158,11 +166,11 @@ class line_track_action(object):
 
                 if array_data_sum == 0:
                     rospy.logwarn('In %s: meg sensor has no reading' % (self._action_name))
-                    rospy.sleep(unit_t)
+                    rospy.sleep(self.unit_t)
                     continue
 
                 v = 0
-                w = 1.0 * w_rot
+                w = 1.0 * self.w_rot
 
                 if abs(array_data_mid_diff) < 1.0:
                     if array_data_mid_std<3.0: # eliminate unique case of sensing cross path and have [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]
@@ -173,7 +181,7 @@ class line_track_action(object):
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
@@ -181,16 +189,16 @@ class line_track_action(object):
         # turn right
         if move_dir == 4:
             # move apart
-            msg.linear.x = v_const
+            msg.linear.x = self.v_const
             msg.angular.z = 0
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_t)
+            rospy.sleep(self.jump_t_t)
 
             # jump turn
             msg.linear.x = 0
-            msg.angular.z = -1.0*w_rot
+            msg.angular.z = -1.0*self.w_rot
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_r)
+            rospy.sleep(self.jump_t_r)
 
             while not rospy.is_shutdown():
 
@@ -204,11 +212,11 @@ class line_track_action(object):
 
                 if array_data_sum==0:
                     rospy.logwarn('In %s: meg sensor has no reading' % (self._action_name))
-                    rospy.sleep(unit_t)
+                    rospy.sleep(self.unit_t)
                     continue
 
                 v = 0
-                w = -1.0*w_rot
+                w = -1.0*self.w_rot
 
                 if abs(array_data_mid_diff)<1.0:
                     if array_data_mid_std < 3.0:
@@ -219,7 +227,7 @@ class line_track_action(object):
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
@@ -235,14 +243,14 @@ class line_track_action(object):
                 array_data_sum = np.sum(array_data)
                 if array_data_sum == 0:
                     rospy.logwarn('In %s: meg sensor has no reading' % (self._action_name))
-                    rospy.sleep(unit_t)
+                    rospy.sleep(self.unit_t)
                     continue
 
                 array_data_mid = np.mean(np.nonzero(array_data)[1]) + 1
                 array_data_mid_diff = array_data_mid - (array_data_len / 2.0 + 0.5)
 
-                v = v_const
-                w = array_data_mid_diff * w_const
+                v = self.v_const
+                w = array_data_mid_diff * self.w_const
 
                 if array_data_sum > array_data_len * (2.0 / 3.0):
                     v = 0
@@ -252,7 +260,7 @@ class line_track_action(object):
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
@@ -265,14 +273,14 @@ class line_track_action(object):
             found = 0
             if array_data_sum == 0:
                 if self.search_line_type == 0:
-                    rospy.logerr('line_track_server: line is not detected on init config, search for line by rotation.')
+                    rospy.logwarn('line_track_server: line is not detected on init config, search for line by rotation.')
                     for n in range(20):
                         if found==1:
                             break
                         msg.linear.x = 0
-                        msg.angular.z = w_const*4
+                        msg.angular.z = self.w_const*4
                         self.cmd_vel_pub.publish(msg)
-                        rospy.sleep(unit_t*10)
+                        rospy.sleep(self.unit_t*10)
 
                         array_data = self.line_sensor_data
                         array_data_sum = np.sum(array_data)
@@ -283,24 +291,24 @@ class line_track_action(object):
                         if found == 1:
                             break
                         msg.linear.x = 0
-                        msg.angular.z = -w_const*4
+                        msg.angular.z = -self.w_const*4
                         self.cmd_vel_pub.publish(msg)
-                        rospy.sleep(unit_t*10)
+                        rospy.sleep(self.unit_t*10)
 
                         array_data = self.line_sensor_data
                         array_data_sum = np.sum(array_data)
                         if array_data_sum > 0:
                             found = 1
                 elif self.search_line_type == 1:
-                    rospy.logerr('line_track_server: line is not detected on init config, search for line by side motion.')
+                    rospy.logwarn('line_track_server: line is not detected on init config, search for line by side motion.')
                     for n in range(20):
                         if found == 1:
                             break
                         msg.linear.x = 0
                         msg.angular.z = 0
-                        msg.linear.y = v_const
+                        msg.linear.y = self.v_const
                         self.cmd_vel_pub.publish(msg)
-                        rospy.sleep(unit_t * 10)
+                        rospy.sleep(self.unit_t * 10)
 
                         array_data = self.line_sensor_data
                         array_data_sum = np.sum(array_data)
@@ -312,9 +320,9 @@ class line_track_action(object):
                             break
                         msg.linear.x = 0
                         msg.angular.z = 0
-                        msg.linear.y = -v_const
+                        msg.linear.y = -self.v_const
                         self.cmd_vel_pub.publish(msg)
-                        rospy.sleep(unit_t * 10)
+                        rospy.sleep(self.unit_t * 10)
 
                         array_data = self.line_sensor_data
                         array_data_sum = np.sum(array_data)
@@ -342,13 +350,13 @@ class line_track_action(object):
                 else:
                     array_data_mid = np.mean(np.nonzero(array_data)[1]) + 1
                     array_data_mid_diff = array_data_mid - (array_data_len / 2.0 + 0.5)
-                    v = v_const
-                    w = -array_data_mid_diff * w_const
+                    v = self.v_const
+                    w = -array_data_mid_diff * self.w_const
 
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
@@ -356,16 +364,16 @@ class line_track_action(object):
         # turn 360
         if move_dir == 9:
             # move apart
-            msg.linear.x = v_const
+            msg.linear.x = self.v_const
             msg.angular.z = 0
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_t)
+            rospy.sleep(self.jump_t_t)
 
             # jump turn
             msg.linear.x = 0
-            msg.angular.z = -1.0 * w_rot
+            msg.angular.z = -1.0 * self.w_rot
             self.cmd_vel_pub.publish(msg)
-            rospy.sleep(jump_t_r)
+            rospy.sleep(self.jump_t_r)
 
             cross_num = 0
 
@@ -381,11 +389,11 @@ class line_track_action(object):
 
                 if array_data_sum == 0:
                     rospy.logwarn('In %s: meg sensor has no reading' % (self._action_name))
-                    rospy.sleep(unit_t)
+                    rospy.sleep(self.unit_t)
                     continue
 
                 v = 0
-                w = -1.0 * w_rot
+                w = -1.0 * self.w_rot
 
                 if abs(array_data_mid_diff) < 1.0:
                     if array_data_mid_std < 3.0:
@@ -393,9 +401,9 @@ class line_track_action(object):
                             cross_num=1
                             # jump turn
                             msg.linear.x = 0
-                            msg.angular.z = -1.0 * w_rot
+                            msg.angular.z = -1.0 * self.w_rot
                             self.cmd_vel_pub.publish(msg)
-                            rospy.sleep(jump_t_r)
+                            rospy.sleep(self.jump_t_r)
                         elif cross_num == 1:
                             v = 0
                             w = 0
@@ -404,7 +412,7 @@ class line_track_action(object):
                 msg.linear.x = v
                 msg.angular.z = w
                 self.cmd_vel_pub.publish(msg)
-                rospy.sleep(unit_t)
+                rospy.sleep(self.unit_t)
 
                 if success == True:
                     break
@@ -412,9 +420,6 @@ class line_track_action(object):
         if success == True:
             rospy.loginfo('%s: Succeeded' % self._action_name)
             self._as.set_succeeded(self._result)
-
-
-
 
 
 if __name__ == '__main__':

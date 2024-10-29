@@ -14,6 +14,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from scipy.ndimage import uniform_filter1d
 
+
 class CamToLine:
     def __init__(self):
         # load params
@@ -24,22 +25,23 @@ class CamToLine:
         with open(param_yaml_file, 'r') as file:
             self.param = yaml.safe_load(file)
 
-        self.image_sub = rospy.Subscriber("/front_rgb_cam/image_raw", Image, self.img_cb)
-        self.meg_sensor_pub = rospy.Publisher("meg_sensor", Int8MultiArray, queue_size=1)
+        self.image_sub = rospy.Subscriber(self.param['cam_to_line']['line_cam_topic'], Image, self.img_cb)
+        self.meg_sensor_pub = rospy.Publisher(self.param['line_track']['line_sensor_topic'], Int8MultiArray, queue_size=1)
 
         self.bridge = CvBridge()
 
         self.cam_img_np = None
-        self.rate = rospy.Rate(1)
+        self.rate = rospy.Rate(self.param['cam_to_line']['freq'])
 
-        self.img_v_por = [0, 0.3]
-        self.negate_color = 1  # 0: white line, 1: black line
-        self.lane_sensor_num = 7
-        self.color_thr = 150
-        self.blur_size = int(320/20)
-        # self.uni_filt_size = int(320/20)
+        self.img_v_por = self.param['cam_to_line']['img_v_por']
+        self.negate_color = self.param['cam_to_line']['negate_color']  # 0: white line, 1: black line
+        self.line_sensor_num = int(self.param['cam_to_line']['line_sensor_num'])
+        self.color_thr = self.param['cam_to_line']['color_thr']
+        self.blur_size = int(self.param['cam_to_line']['blur_size'])
 
-        self.verbose = 0
+        self.verbose = self.param['cam_to_line']['verbose']
+
+        return
 
     def img_cb(self, msg):
         # get img
@@ -73,20 +75,17 @@ class CamToLine:
         # take max along v axis
         cam_img_top_gray_np_mean = np.max(cam_img_top_gray_np_blur, axis=0)
 
-        # # run moving average to filter out noise in color, because we are going to use the max of each chunk next
-        # cam_img_top_gray_np_mean_ave = uniform_filter1d(cam_img_top_gray_np_mean, size=self.uni_filt_size)
-
-        # reduce the array number to self.lane_sensor_num
-        ls_idx = np.linspace(0, cam_img_top_gray_np_mean.shape, self.lane_sensor_num+1)
-        lane_det_array = np.zeros((self.lane_sensor_num,))
-        for n in range(self.lane_sensor_num):
+        # reduce the array number to self.line_sensor_num
+        ls_idx = np.linspace(0, cam_img_top_gray_np_mean.shape, self.line_sensor_num + 1)
+        lane_det_array = np.zeros((self.line_sensor_num,))
+        for n in range(self.line_sensor_num):
             array_chunk = cam_img_top_gray_np_mean[int(ls_idx[n]):int(ls_idx[n+1])]
             lane_det_array[n] = np.max(array_chunk)
 
         if self.verbose:
             rospy.loginfo(lane_det_array)
 
-        lane_det_array_bn = np.zeros((self.lane_sensor_num,))
+        lane_det_array_bn = np.zeros((self.line_sensor_num,))
         lane_det_array_bn[lane_det_array > self.color_thr] = 1
 
         # send the msg

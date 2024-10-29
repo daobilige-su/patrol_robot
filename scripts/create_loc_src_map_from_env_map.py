@@ -17,13 +17,12 @@ import cv2
 
 class LocMapCreator:
     def __init__(self):
-        self.dist_from_explored_map = 5
-
         # load params
         rospack = rospkg.RosPack()
         self.pkg_path = rospack.get_path('patrol_robot') + '/'
 
         env_map_yaml_file = rospy.get_param('/env_map_yaml_file')
+        self.dist_from_explored_map = float(rospy.get_param('/dist_from_explored_map'))
 
         # set map params
         self.env_map_yaml_file = env_map_yaml_file
@@ -67,8 +66,10 @@ class LocMapCreator:
 
         # use uniform kernel and 2D conv (kernel size of self.dist_from_explored_map) for blurring, and set
         # element > min blur (1/(self.dist_in_pix*self.dist_in_pix)) to be 0
-        env_explored_map_np_conv = cv2.filter2D(env_explored_map_np, -1, (1/(self.dist_in_pix*self.dist_in_pix))*np.ones((self.dist_in_pix, self.dist_in_pix)))
-        loc_src_map_np[env_explored_map_np_conv>(1/(self.dist_in_pix*self.dist_in_pix))] = 0
+        # here blur window size needs to be set to 2*self.dist_in_pix, since window is centered in middle and half of
+        # its size from explored map boundary will be non zero.
+        env_explored_map_np_conv = cv2.filter2D(env_explored_map_np, -1, (1/(self.dist_in_pix*2*self.dist_in_pix*2))*np.ones((self.dist_in_pix*2, self.dist_in_pix*2)))
+        loc_src_map_np[env_explored_map_np_conv>(1/(self.dist_in_pix*2*self.dist_in_pix*2))] = 0
 
         self.loc_src_map.np = loc_src_map_np.copy()
 
@@ -90,9 +91,9 @@ class LocMapCreator:
         # publish msg
         rospy.logwarn('waiting 5s to send ros map msgs... ')
         rospy.sleep(5)
-        loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res, [0, 0, 0])
+        loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res, [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
         self.loc_src_map_pub.publish(loc_src_map_msg)
-        env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res, [0, 0, 0])
+        env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res, [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
         self.env_map_pub.publish(env_map_msg)
         rospy.logwarn('map msgs sent.')
 
@@ -133,8 +134,9 @@ class LocMapCreator:
         if mapCl.yaml['negate'] == 0:
             map_prob_np_p = (255.0 - map_prob_np) / 255.0
         else:
-            rospy.logerr('fws_loc_manager.py: negate=1 not implemented.')
-            return None
+            map_prob_np_p = map_prob_np / 255.0
+            # rospy.logerr('fws_loc_manager.py: negate=1 not implemented.')
+            # return None
         map_np = -1 * np.ones(map_prob_np.shape, dtype=np.int8)
         map_np[map_prob_np_p > mapCl.yaml['occupied_thresh']] = 100
         map_np[map_prob_np_p < mapCl.yaml['free_thresh']] = 0

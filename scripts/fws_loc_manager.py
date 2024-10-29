@@ -26,7 +26,9 @@ class LocManager:
         with open(param_yaml_file, 'r') as file:
             self.param = yaml.safe_load(file)
 
-        self.manager_rate = rospy.Rate(0.1)
+        self.manager_rate = rospy.Rate(self.param['loc']['freq'])
+        self.map_update_time = self.param['loc']['map_update_time']  # how long the map will be updated.
+        self.map_update_pre_t = rospy.get_time()
 
         # servers
         rospy.wait_for_service('GpsLocOn')
@@ -161,13 +163,17 @@ class LocManager:
         # send new map
         update_map_on = True
         if update_map_on:
-            loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res,
-                                                  [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
-            self.loc_src_map_pub.publish(loc_src_map_msg)
-            env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res,
-                                              [-self.env_map.ct_m[0], -self.env_map.ct_m[1], 0])
-            self.env_map_pub.publish(env_map_msg)
-            rospy.logwarn('new map msgs sent.')
+            current_t = rospy.get_time()
+            if current_t > (self.map_update_pre_t + self.map_update_time):
+                loc_src_map_msg = self.create_map_msg(self.loc_src_map.np, self.loc_src_map.res,
+                                                      [-self.loc_src_map.ct_m[0], -self.loc_src_map.ct_m[1], 0])
+                self.loc_src_map_pub.publish(loc_src_map_msg)
+                env_map_msg = self.create_map_msg(self.env_map.np, self.env_map.res,
+                                                  [-self.env_map.ct_m[0], -self.env_map.ct_m[1], 0])
+                self.env_map_pub.publish(env_map_msg)
+                rospy.logwarn('new map msgs sent.')
+
+                self.map_update_pre_t = current_t
 
         return
 
@@ -230,8 +236,9 @@ class LocManager:
         if mapCl.yaml['negate'] == 0:
             map_prob_np_p = (255.0 - map_prob_np) / 255.0
         else:
-            rospy.logerr('fws_loc_manager.py: negate=1 not implemented.')
-            return None
+            map_prob_np_p = map_prob_np / 255.0
+            # rospy.logerr('fws_loc_manager.py: negate=1 not implemented.')
+            # return None
         map_np = -1 * np.ones(map_prob_np.shape, dtype=np.int8)
         map_np[map_prob_np_p > mapCl.yaml['occupied_thresh']] = 100
         map_np[map_prob_np_p < mapCl.yaml['free_thresh']] = 0
