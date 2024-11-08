@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+    <!--     param file -->
+    <arg name="param_yaml_file" value="$(find patrol_robot)/param/fws_sim.yaml" />
+    <param name="param_yaml_file" value="$(arg param_yaml_file)" />
+
+    <!--   robot model -->
+    <node pkg="patrol_robot" type="fws_model.py" name="fws_model"/>
+
+    <!--     tf_manager -->
+    <node pkg="patrol_robot" type="fws_tf_manager.py" name="fws_tf_manager"/>
+
+    <!--       map_server -->
+    <node pkg="map_server" type="map_server" name="map_server" args="$(find patrol_robot)/map/fws_map_sim.yaml"/>
+
+    <!--   if sim, process vlp16 in sim -->
+    <include file="$(find patrol_robot)/launch/fws_handle_sim_vlp16.launch" />
+
+    <!-- rviz -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find patrol_robot)/rviz_cfg/fws_sim.rviz"/>
+</launch> 
+
